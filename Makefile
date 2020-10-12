@@ -15,7 +15,10 @@ FunctorCell.o: $(SRC_PATH)/FunctorCell.cpp
 RefCell.o: $(SRC_PATH)/RefCell.cpp
 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
 
-wam: main.o FunctorCell.o RefCell.o
+memory.o: $(SRC_PATH)/memory.cpp
+	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
+
+wam: main.o FunctorCell.o RefCell.o memory.o
 	$(CXX) $(CXXFLAGS) $? -o $@
 
 # %.o: %.cpp

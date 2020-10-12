@@ -7,7 +7,7 @@
     "tasks": [
         {
             "label": "Build",
-            "args": ["all"],
+            "args": ["m0"],
             "problemMatcher": [],
             "group": "build"
         },

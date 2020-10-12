@@ -1,6 +1,10 @@
 #include "RefCell.hpp"
 
-RefCell::RefCell(reftype type, int index){
+RefCell::RefCell(reftype type, DataCell* addr){
     this->type = type;
-    this->index = index;
+    if(addr == nullptr){
+        this->addr = this;
+    } else{
+        this->addr = addr;
+    }
 }
