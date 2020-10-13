@@ -1,55 +1,64 @@
 #include <iostream>
 #include <vector>
 #include <memory>
-#include "DataCell.hpp"
-#include "FunctorCell.hpp"
-#include "RefCell.hpp"
 #include <regex>
 #include <fstream>
-#include "memory.hpp"
+#include "Address.hpp"
+#include "DataCell.hpp"
+#include "MemoryBloc.hpp"
 
-extern std::vector<DataCell> heap;
-extern std::vector<DataCell> registers;
-extern int H;
+enum memory_mode {write, read};
 
-FunctorCell string_to_functor(std::string str){
-    std::smatch match;
-    std::regex_match(str, match, std::regex("(\\w+)\\/(\\d+)"));
-    return FunctorCell(match[1], std::stoi(match[2]));
+MemoryBloc heap;
+MemoryBloc registers;
+Address H (heap, 0);
+memory_mode mode;
+
+DataCell string_to_functor(std::string str){
+    return DataCell(str);
 }
 
 void put_structure(std::string functor, int reg){
-    heap.resize(H+2);
-    heap[H] = RefCell(reftype(str), &heap[H+1]);
+    heap[H] = DataCell("STR", H+1);
     heap[H+1] = string_to_functor(functor);
-    set_register(reg, heap[H]);
+    registers[reg] = heap[H];   //pass by value/reference???
     H += 2;
 }
 
 void set_variable(int reg){
-    heap.resize(H+1);
-    heap[H] = RefCell(reftype(ref), &heap[H]);
-    set_register(reg, heap[H]);
-    H++;
+    heap[H] = DataCell("REF", H);
+    registers[reg] = heap[H];
+    H += 1;
 }
 
 void set_value(int reg){
-    heap.push_back(registers[reg]);
-    H++;
+    heap[H] = registers[reg];
+    H += 1;
 }
 
-DataCell* deref(DataCell* addr){
-    if(addr->isRef && ((RefCell*)addr)->type == reftype(ref) && ((RefCell*)addr)->addr != addr){
-        return deref(((RefCell*)addr)->addr);
+Address deref(const Address& addr){
+    if(heap[addr].tag == "REF" && heap[addr].addr != addr){
+        return deref(heap[addr].addr);
     }
     return addr;
 }
 
-int get_structure(std::string functor, int reg){
-    DataCell* addr = deref(&registers[reg]);
-    if(addr->isRef){
+void bind(const Address& a, const Address& b){
 
-    } else{
+}
+
+int get_structure(std::string functor, int reg){
+    Address addr = deref(registers[reg].addr);
+    DataCell& cell = addr.getCell();
+    if(cell.tag == "REF"){
+        heap[H] = DataCell("STR", H+1);
+            heap[H+1] = string_to_functor(functor);
+            bind(addr, H);
+            H += 2;
+            mode = write;
+    } else if(cell.tag == "STR"){
+
+    }else{
         return 1;
     }
     return 0;

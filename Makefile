@@ -9,16 +9,16 @@ m0: wam
 main.o: $(SRC_PATH)/main.cpp
 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
 
-FunctorCell.o: $(SRC_PATH)/FunctorCell.cpp
+DataCell.o: $(SRC_PATH)/DataCell.cpp
 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
 
-RefCell.o: $(SRC_PATH)/RefCell.cpp
+MemoryBloc.o: $(SRC_PATH)/MemoryBloc.cpp
 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
 
-memory.o: $(SRC_PATH)/memory.cpp
+Address.o: $(SRC_PATH)/Address.cpp
 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
 
-wam: main.o FunctorCell.o RefCell.o memory.o
+wam: main.o DataCell.o MemoryBloc.o Address.o
 	$(CXX) $(CXXFLAGS) $? -o $@
 
 # %.o: %.cpp
