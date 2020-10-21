@@ -37,8 +37,8 @@ void set_value(int reg){
 }
 
 Address deref(const Address& addr){
-    if(heap[addr].tag == "REF" && heap[addr].addr != addr){
-        return deref(heap[addr].addr);
+    if(heap[addr].tag == "REF" && *heap[addr].addr != addr){
+        return deref(*heap[addr].addr);
     }
     return addr;
 }
@@ -48,7 +48,7 @@ void bind(const Address& a, const Address& b){
 }
 
 int get_structure(std::string functor, int reg){
-    Address addr = deref(registers[reg].addr);
+    Address addr = deref(*registers[reg].addr);
     DataCell& cell = addr.getCell();
     if(cell.tag == "REF"){
         heap[H] = DataCell("STR", H+1);
