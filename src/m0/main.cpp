@@ -18,6 +18,37 @@ Address H (heap, 0);
 Address S;
 memory_mode mode;
 
+void print_memory(){
+    std::cout << "HEAP:\n";
+    for(DataCell cell : heap.cells){
+        if(cell.tag == "REF" || cell.tag == "STR"){
+            std::cout << "< " << cell.tag << ", ";
+            if(cell.getAddr().bloc == &heap){
+                std::cout << "heap[";
+            } else if(cell.getAddr().bloc == &registers){
+                std::cout << "registers[";
+            }
+            std::cout << cell.getAddr().index << "] >\n";
+        } else{
+            std::cout << "< " << cell.tag << " >\n";
+        }
+    }
+    std::cout << "\nregisters:\n";
+    for(DataCell cell : registers.cells){
+        if(cell.tag == "REF" || cell.tag == "STR"){
+            std::cout << "< " << cell.tag << ", ";
+            if(cell.getAddr().bloc == &heap){
+                std::cout << "heap[";
+            } else if(cell.getAddr().bloc == &registers){
+                std::cout << "registers[";
+            }
+            std::cout << cell.getAddr().index << "] >\n";
+        } else{
+            std::cout << "< " << cell.tag << " >\n";
+        }
+    }
+}
+
 DataCell string_to_functor(std::string str){
     return DataCell(str);
 }
@@ -79,7 +110,7 @@ int unify(Address a1, Address a2){
             } else{
                 functor f1 = get_functor(d1.getCell().getAddr().getCell().tag), f2 = get_functor(d2.getCell().getAddr().getCell().tag);
                 if(f1.first == f2.first && f1.second == f2.second){
-                    for(int i = 1; i <= f1.second; i++){
+                    for(unsigned int i = 1; i <= f1.second; i++){
                         pdl.push(d1.getCell().getAddr()+i);
                         pdl.push(d2.getCell().getAddr()+i);
                     }
@@ -93,7 +124,7 @@ int unify(Address a1, Address a2){
 }
 
 int get_structure(std::string functor, int reg){
-    Address addr = deref(registers[reg].getAddr());
+    Address addr = deref(Address(registers, reg));
     DataCell& cell = addr.getCell();
     if(cell.tag == "REF"){
         heap[H] = DataCell("STR", H+1);
@@ -150,11 +181,12 @@ int read_query(std::string q){
     std::ifstream f;
     f.open(q, std::ifstream::in);
     std::vector<std::regex> vr;
-    vr.emplace_back("put_structure\\((\\w+\\/\\d+),(\\d+)\\)$");
-    vr.emplace_back("set_variable\\((\\d+)\\)$");
-    vr.emplace_back("set_value\\((\\d+)\\)$");
+    vr.emplace_back("put_structure (\\w+\\/\\d+),X(\\d+)$");
+    vr.emplace_back("set_variable X(\\d+)$");
+    vr.emplace_back("set_value X(\\d+)$");
     std::string line;
     std::smatch match;
+    int line_no = 1;
     while(getline(f, line)){
         unsigned int i = 0;
         while(i < vr.size() && !std::regex_match(line, match, vr[i])){
@@ -172,9 +204,11 @@ int read_query(std::string q){
             set_value(std::stoi(match[1]));
             break;
         default:
+            std::cout << "Error in line " << line_no << "\n";
             f.close();
             return 2;
         }
+        line_no++;
     }
     f.close();
     return 0;
@@ -184,11 +218,12 @@ int read_program(std::string p){
     std::ifstream f;
     f.open(p, std::ifstream::in);
     std::vector<std::regex> vr;
-    vr.emplace_back("get_structure\\((\\w+\\/\\d+),(\\d+)\\)$");
-    vr.emplace_back("unify_variable\\((\\d+)\\)$");
-    vr.emplace_back("unify_value\\((\\d+)\\)$");
+    vr.emplace_back("get_structure (\\w+\\/\\d+),X(\\d+)$");
+    vr.emplace_back("unify_variable X(\\d+)$");
+    vr.emplace_back("unify_value X(\\d+)$");
     std::string line;
     std::smatch match;
+    int line_no = 1;
     while(getline(f, line)){
         unsigned int i = 0;
         while(i < vr.size() && !std::regex_match(line, match, vr[i])){
@@ -209,9 +244,11 @@ int read_program(std::string p){
             unify_value(std::stoi(match[1]));
             break;
         default:
+            std::cout << "Error in line " << line_no << "\n";
             f.close();
             return 2;
         }
+        line_no++;
     }
     f.close();
     return 0;
@@ -236,7 +273,27 @@ int main(int argc, char** argv){
         }
         return 1;
     }
-    read_query(query);
-
+    try{
+        read_query(query);
+        print_memory();
+        int result = read_program(program);
+        print_memory();
+        switch (result)
+        {
+        case 0:
+            break;
+        case 1:
+            std::cout << "Can't unify.\n";
+            break;
+        case 2:
+            std::cout << "Critical error.\n";
+            break;
+        default:
+            break;
+        }
+    } catch(char const* str){
+        std::cout << str;
+        return 1;
+    }
     return 0;
 }

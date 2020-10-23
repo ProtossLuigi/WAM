@@ -10,7 +10,7 @@ DataCell& MemoryBloc::operator[](const unsigned int i){
 
 DataCell& MemoryBloc::operator[](const Address& addr){
     if(addr.bloc != this){
-        throw "Address points to diffrent area of memory.";
+        throw "Address points to diffrent area of memory.\n";
     }
     return this->operator[](addr.index);
 }

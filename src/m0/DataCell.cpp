@@ -7,7 +7,7 @@ DataCell::DataCell(){
 
 DataCell::DataCell(const std::string tag, Address addr){
     this->tag = tag;
-    this->addr = std::shared_ptr<Address>(&addr);
+    this->addr = std::shared_ptr<Address>(new Address(addr));
 }
 
 DataCell::DataCell(const std::string tag){
