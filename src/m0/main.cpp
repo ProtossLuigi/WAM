@@ -6,16 +6,29 @@
 #include "Address.hpp"
 #include "DataCell.hpp"
 #include "MemoryBloc.hpp"
+#include <stack>
+
+typedef std::pair<std::string,unsigned int> functor;
 
 enum memory_mode {write, read};
 
 MemoryBloc heap;
 MemoryBloc registers;
 Address H (heap, 0);
+Address S;
 memory_mode mode;
 
 DataCell string_to_functor(std::string str){
     return DataCell(str);
+}
+
+functor get_functor(std::string str){
+    std::smatch match;
+    if(std::regex_match(str, match, std::regex("(w+)\\/(d+)"))){
+        return functor(match[1],std::stoi(match[2]));
+    } else{
+        throw "Argument not a representation of a functor.";
+    }
 }
 
 void put_structure(std::string functor, int reg){
@@ -37,18 +50,50 @@ void set_value(int reg){
 }
 
 Address deref(const Address& addr){
-    if(heap[addr].tag == "REF" && *heap[addr].addr != addr){
-        return deref(*heap[addr].addr);
+    if(heap[addr].tag == "REF" && heap[addr].getAddr() != addr){
+        return deref(heap[addr].getAddr());
     }
     return addr;
 }
 
-void bind(const Address& a, const Address& b){
+void bind(Address& a, Address& b){
+    if(a.getCell().getAddr() == a){
+        a.getCell().setAddr(b);
+    } else{
+        b.getCell().setAddr(a);
+    }
+}
 
+int unify(Address a1, Address a2){
+    std::stack<Address> pdl;
+    pdl.push(a1);
+    pdl.push(a2);
+    while(!pdl.empty()){
+        Address d1 = deref(pdl.top());
+        pdl.pop();
+        Address d2 = deref(pdl.top());
+        pdl.pop();
+        if(d1 != d2){
+            if(d1.getCell().tag == "REF" || d2.getCell().tag == "REF"){
+                bind(d1,d2);
+            } else{
+                functor f1 = get_functor(d1.getCell().getAddr().getCell().tag), f2 = get_functor(d2.getCell().getAddr().getCell().tag);
+                if(f1.first == f2.first && f1.second == f2.second){
+                    for(int i = 1; i <= f1.second; i++){
+                        pdl.push(d1.getCell().getAddr()+i);
+                        pdl.push(d2.getCell().getAddr()+i);
+                    }
+                } else{
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
 }
 
 int get_structure(std::string functor, int reg){
-    Address addr = deref(*registers[reg].addr);
+    Address addr = deref(registers[reg].getAddr());
     DataCell& cell = addr.getCell();
     if(cell.tag == "REF"){
         heap[H] = DataCell("STR", H+1);
@@ -57,7 +102,12 @@ int get_structure(std::string functor, int reg){
             H += 2;
             mode = write;
     } else if(cell.tag == "STR"){
-
+        if(heap[cell.getAddr()].tag == functor){
+            S = cell.getAddr() + 1;
+            mode = read;
+        } else{
+            return 1;
+        }
     }else{
         return 1;
     }
@@ -65,11 +115,35 @@ int get_structure(std::string functor, int reg){
 }
 
 void unify_variable(int reg){
-    //TODO
+    switch (mode)
+    {
+    case read:
+        registers[reg] = heap[S];
+        break;
+    case write:
+        heap[H] = DataCell("REF", H);
+        registers[reg] = heap[H];
+        H += 1;
+        break;
+    default:
+        break;
+    }
+    S += 1;
 }
 
 void unify_value(int reg){
-    //TODO
+    switch (mode)
+    {
+    case read:
+        unify(Address(registers, reg), S);
+        break;
+    case write:
+        heap[H] = registers[reg];
+        H += 1;
+    default:
+        break;
+    }
+    S += 1;
 }
 
 int read_query(std::string q){

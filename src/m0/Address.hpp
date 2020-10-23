@@ -8,7 +8,7 @@ class Address
 public:
     MemoryBloc* bloc;
     unsigned int index;
-    Address();
+    Address() = default;
     Address(MemoryBloc& bloc, unsigned int index);
     DataCell& getCell();
     Address& operator+=(int offset);
