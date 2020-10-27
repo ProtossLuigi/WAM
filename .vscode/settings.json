@@ -45,6 +45,7 @@
         "ctime": "cpp",
         "iterator": "cpp",
         "map": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "cinttypes": "cpp"
     }
 }
