@@ -1,0 +1,9 @@
+put_structure h/2,X2
+set_variable X1
+set_variable X4
+put_structure f/1,X3
+set_value X4
+put_structure p/3,X0
+set_value X1
+set_value X2
+set_value X3

@@ -12,4 +12,5 @@ public:
     Term(std::string name, std::vector<std::shared_ptr<Term>> subterms);
     bool operator==(const Term& t);
     bool isVar();
-}
+    std::string to_string();
+};

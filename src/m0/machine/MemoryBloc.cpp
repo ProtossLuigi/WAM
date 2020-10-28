@@ -2,8 +2,8 @@
 #include "Address.hpp"
 
 DataCell& MemoryBloc::operator[](const unsigned int i){
-    if(cells.size() <= i){
-        cells.resize(i+1);
+    while(cells.size() < i+1){
+        cells.emplace_back("REF", Address(*this, cells.size()));
     }
     return cells[i];
 }

@@ -1,10 +1,6 @@
 #include "DataCell.hpp"
 #include "Address.hpp"
 
-DataCell::DataCell(){
-    this->tag = "";
-}
-
 DataCell::DataCell(const std::string tag, Address addr){
     this->tag = tag;
     this->addr = std::shared_ptr<Address>(new Address(addr));
@@ -15,9 +11,12 @@ DataCell::DataCell(const std::string tag){
 }
 
 void DataCell::setAddr(Address addr){
-    this->addr.reset(&addr);
+    this->addr.reset(new Address(addr));
 }
 
 Address DataCell::getAddr(){
+    if(tag != "REF" && tag != "STR"){
+        throw "Cannot dereference functor cell.";
+    }
     return *addr;
 }

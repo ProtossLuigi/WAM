@@ -55,10 +55,10 @@ DataCell string_to_functor(std::string str){
 
 functor get_functor(std::string str){
     std::smatch match;
-    if(std::regex_match(str, match, std::regex("(w+)\\/(d+)"))){
+    if(std::regex_match(str, match, std::regex("(\\w+)\\/(\\d+)"))){
         return functor(match[1],std::stoi(match[2]));
     } else{
-        throw "Argument not a representation of a functor.";
+        throw "Argument not a representation of a functor.\n";
     }
 }
 
@@ -80,9 +80,9 @@ void set_value(int reg){
     H += 1;
 }
 
-Address deref(const Address& addr){
-    if(heap[addr].tag == "REF" && heap[addr].getAddr() != addr){
-        return deref(heap[addr].getAddr());
+Address deref(Address addr){
+    if(addr.getCell().tag == "REF" && addr.getCell().getAddr() != addr){
+        return deref(addr.getCell().getAddr());
     }
     return addr;
 }
@@ -128,10 +128,10 @@ int get_structure(std::string functor, int reg){
     DataCell& cell = addr.getCell();
     if(cell.tag == "REF"){
         heap[H] = DataCell("STR", H+1);
-            heap[H+1] = string_to_functor(functor);
-            bind(addr, H);
-            H += 2;
-            mode = write;
+        heap[H+1] = string_to_functor(functor);
+        bind(addr, H);
+        H += 2;
+        mode = write;
     } else if(cell.tag == "STR"){
         if(heap[cell.getAddr()].tag == functor){
             S = cell.getAddr() + 1;

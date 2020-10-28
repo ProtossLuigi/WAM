@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/wam",
-            "args": [],
+            "args": ["-q", "tests/test_query_code.txt", "-p", "tests/test_program_code.txt"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

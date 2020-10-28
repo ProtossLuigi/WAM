@@ -1,4 +1,4 @@
-#include <Term.hpp>
+#include "Term.hpp"
 
 Term::Term(std::string name){
     this->name = name;
@@ -25,4 +25,19 @@ bool Term::operator==(const Term& t){
 
 bool Term::isVar(){
     return 'A' <= name[0] && 'Z' >= name[0];
+}
+
+std::string Term::to_string(){
+    std::string str = name;
+    if(no_subterms > 0){
+        str += "(";
+        for(int i=0; i<no_subterms; i++){
+            if(i > 0){
+                str += ",";
+            }
+            str += subterms[i]->to_string();
+        }
+        str += ")";
+    }
+    return str;
 }

@@ -11,7 +11,6 @@ private:
     std::shared_ptr<Address> addr;
 public:
     std::string tag;
-    DataCell();
     DataCell(const std::string tag, Address addr);
     DataCell(const std::string tag);
     void setAddr(Address addr);

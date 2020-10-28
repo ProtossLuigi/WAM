@@ -24,10 +24,23 @@ Address.o: $(SRC_PATH)/machine/Address.cpp
 wam: main.o DataCell.o MemoryBloc.o Address.o
 	$(CXX) $(CXXFLAGS) $? -o $@
 
-compiler: $(SRC_PATH)/compiler/compiler.l $(SRC_PATH)/compiler/compiler.y
-	bison -o compiler_y.cpp -d $(SRC_PATH)/compiler/compiler.y
-	flex -o compiler_l.cpp $(SRC_PATH)/compiler/compiler.l
-	g++ -o compiler compiler_y.cpp compiler_l.cpp
+compiler_y.cpp compiler_y.hpp: $(SRC_PATH)/compiler/compiler.y
+	bison -o compiler_y.cpp -d $?
+
+compiler_l.cpp: $(SRC_PATH)/compiler/compiler.l
+	flex -o $@ $<
+
+compiler_y.o: compiler_y.cpp
+	$(CXX) -c $(CXXFLAGS) $? -o $@
+
+compiler_l.o: compiler_l.cpp compiler_y.hpp
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+Term.o: $(SRC_PATH)/compiler/Term.cpp
+	$(CXX) -c $(CXXFLAGS) $? -o $@
+
+compiler: compiler_y.o compiler_l.o Term.o
+	$(CXX) $(CXXFLAGS) $? -o $@
 
 # %.o: %.cpp
 # 	$(CXX) $(DFLAGS) -c $(CXXFLAGS) $< -o $@
