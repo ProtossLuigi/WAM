@@ -1,16 +1,19 @@
 CXX = g++
 CXXFLAGS = -ggdb -Wall
-SRC_PATH = ./src/m1
+SRC_PATH = ./src/m2
 
-.PHONY: all m0 clean cleanall
+.PHONY: all m0 m1 m2 clean cleanall
 
-all: m1
+all: m2
 
 m0: SRC_PATH = ./src/m0
 m0: wam compiler
 
 m1: SRC_PATH = ./src/m1
 m1: wam compiler
+
+m2: SRC_PATH = ./src/m2
+m2: wam compiler
 
 main.o: $(SRC_PATH)/machine/main.cpp
 	$(CXX) -c $(CXXFLAGS) $< -o $@
