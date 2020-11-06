@@ -168,7 +168,8 @@ program:      predicates                {
 ;
 predicates:   predicates predicate      {
                                             if(query){
-                                                yyerror("invalid syntax\n");
+                                                yyerror("invalid query syntax\n");
+                                                return 1;
                                             }
                                             $$.lineno = $1.lineno;
                                             $$.str = $1.str + $2.str;
