@@ -1,12 +1,11 @@
-get_structure p/3,X0
-unify_variable X1
-unify_variable X2
-unify_variable X3
-get_structure f/1,X1
+p/3 :
+get_structure f/1,A0
 unify_variable X4
-get_structure h/2,X2
-unify_value X3
+get_structure h/2,A1
+unify_variable X3
 unify_variable X5
+get_value X3,A2
 get_structure f/1,X5
 unify_variable X6
 get_structure a/0,X6
+proceed
