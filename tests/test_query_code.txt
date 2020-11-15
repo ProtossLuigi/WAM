@@ -1,7 +1,9 @@
-put_variable X1,A0
-put_structure h/2,A1
-set_value X1
-set_variable X4
-put_structure f/1,A2
-set_value X4
-call p/3
+allocate 2
+put_variable Y0,A0
+put_variable Y1,A1
+call p/2
+put_value Y0,A0
+call write/1
+call fail/0
+put_value Y1,A0
+call write/1

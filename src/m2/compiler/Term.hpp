@@ -6,7 +6,7 @@
 class Term{
 public:
     std::string name;
-    int no_subterms;
+    unsigned int no_subterms;
     std::vector<std::shared_ptr<Term>> subterms;
     Term(std::string name);
     Term(std::string name, std::vector<std::shared_ptr<Term>> subterms);

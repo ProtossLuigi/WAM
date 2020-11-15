@@ -1,19 +1,35 @@
-p/3 :
-get_structure f/1,A0
-unify_variable X4
-get_structure h/2,A1
-unify_variable X3
-unify_variable X5
-get_value X3,A2
-get_structure f/1,X5
-unify_variable X6
-get_structure a/0,X6
+p/2 :
+allocate 4
+get_structure f/2,A0
+unify_variable Y0
+unify_variable Y2
+get_structure g/2,A1
+unify_variable Y1
+unify_variable Y3
+put_value Y0,A0
+put_value Y1,A1
+call q/2
+put_value Y2,A0
+put_value Y3,A1
+call r/2
+deallocate
+q/2 :
+allocate 1
+get_variable Y0,A0
+get_structure a/0,A1
+put_value Y0,A0
+call h/1
+deallocate
+h/1 :
+get_structure x/0,A0
 proceed
 r/2 :
-get_structure p/2,A0
-unify_variable X2
-unify_variable X3
-get_structure p/2,A1
-unify_value X2
-unify_value X3
+allocate 1
+get_structure y/0,A0
+get_variable Y0,A1
+put_value Y0,A0
+call i/1
+deallocate
+i/1 :
+get_structure b/0,A0
 proceed

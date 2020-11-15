@@ -1,15 +1,18 @@
 CXX = g++
 CXXFLAGS = -ggdb -Wall
 SRC_PATH = ./src/m2
+WAM_REQS = main.o DataCell.o MemoryBloc.o Address.o Enviroment.o
 
 .PHONY: all m0 m1 m2 clean cleanall
 
 all: m2
 
 m0: SRC_PATH = ./src/m0
+m0: WAM_REQS = main.o DataCell.o MemoryBloc.o Address.o
 m0: wam compiler
 
 m1: SRC_PATH = ./src/m1
+m1: WAM_REQS = main.o DataCell.o MemoryBloc.o Address.o
 m1: wam compiler
 
 m2: SRC_PATH = ./src/m2
@@ -27,7 +30,10 @@ MemoryBloc.o: $(SRC_PATH)/machine/MemoryBloc.cpp
 Address.o: $(SRC_PATH)/machine/Address.cpp
 	$(CXX) -c $(CXXFLAGS) $< -o $@
 
-wam: main.o DataCell.o MemoryBloc.o Address.o
+Enviroment.o: $(SRC_PATH)/machine/Enviroment.cpp
+	$(CXX) -c $(CXXFLAGS) $< -o $@
+
+wam: $(WAM_REQS)
 	$(CXX) $(CXXFLAGS) $? -o $@
 
 compiler_y.cpp compiler_y.hpp: $(SRC_PATH)/compiler/compiler.y

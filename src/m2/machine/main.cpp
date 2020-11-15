@@ -6,6 +6,7 @@
 #include "Address.hpp"
 #include "DataCell.hpp"
 #include "MemoryBloc.hpp"
+#include "Enviroment.hpp"
 #include <stack>
 #include <unordered_map>
 
@@ -16,12 +17,15 @@ enum memory_mode {write, read};
 MemoryBloc heap;
 MemoryBloc registers;
 MemoryBloc arg_registers;
+MemoryBloc perm_registers;
 std::vector<std::vector<std::string>> code;
+std::stack<Enviroment> enviroments;
 std::unordered_map<std::string, unsigned int> labels;
 Address H (heap, 0);
 Address S;
 memory_mode mode;
 unsigned int P = 0;
+unsigned int CP;
 
 std::string address_to_string(Address addr){
     if(addr.bloc == &heap){
@@ -148,6 +152,9 @@ Address string_to_address(std::string str){
         } else if (match[1] == "A")
         {
             return Address(arg_registers, std::stoi(match[2]));
+        } else if (match[1] == "Y")
+        {
+            return Address(perm_registers, std::stoi(match[2]));
         }
     }
     throw str + " is not a correct representation of an address.\n";
@@ -161,7 +168,7 @@ void bind(Address& a, Address& b){
     }
 }
 
-int unify(Address a1, Address a2){
+bool unify(Address a1, Address a2){
     std::stack<Address> pdl;
     pdl.push(a1);
     pdl.push(a2);
@@ -181,65 +188,65 @@ int unify(Address a1, Address a2){
                         pdl.push(d2.getCell().getAddr()+i);
                     }
                 } else{
-                    return 1;
+                    return true;
                 }
             }
         }
     }
-    return 0;
+    return false;
 }
 
 // Machine instructions
 
 void put_structure(std::string functor, Address reg){
-    heap[H] = DataCell("STR", H+1);
-    heap[H+1] = string_to_functor(functor);
-    reg.getCell() = heap[H];
+    H.getCell() = DataCell("STR", H+1);
+    (H+1).getCell() = string_to_functor(functor);
+    reg.getCell() = H.getCell();
     H += 2;
 }
 
 void set_variable(Address reg){
-    heap[H] = DataCell("REF", H);
-    registers[reg] = heap[H];
+    H.getCell() = DataCell("REF", H);
+    reg.getCell() = H.getCell();
     H += 1;
 }
 
 void set_value(Address reg){
-    heap[H] = registers[reg];
+    H.getCell() = reg.getCell();
     H += 1;
 }
 
-int get_structure(std::string functor, Address reg){
+bool get_structure(std::string functor, Address reg){
     Address addr = deref(reg);
     DataCell& cell = addr.getCell();
     if(cell.tag == "REF"){
-        heap[H] = DataCell("STR", H+1);
-        heap[H+1] = string_to_functor(functor);
+        H.getCell() = DataCell("STR", H+1);
+        (H+1).getCell() = string_to_functor(functor);
         bind(addr, H);
         H += 2;
         mode = memory_mode(0);
     } else if(cell.tag == "STR"){
-        if(heap[cell.getAddr()].tag == functor){
+        if(cell.getAddr().getCell().tag == functor){
             S = cell.getAddr() + 1;
             mode = read;
         } else{
-            return 1;
+            return true;
         }
     }else{
-        return 1;
+        throw "Error: Address points to functor cell. Expected variable cell.";
     }
-    return 0;
+    return false;
 }
 
 void unify_variable(Address reg){
     switch (mode)
     {
     case read:
-        registers[reg] = heap[S];
+        reg.getCell() = S.getCell();
         break;
     case 0:
-        heap[H] = DataCell("REF", H);
-        registers[reg] = heap[H];
+        H.getCell() = DataCell("REF", H);
+        reg.getCell() = H.getCell();
         H += 1;
         break;
     default:
@@ -248,53 +255,77 @@ void unify_variable(Address reg){
     S += 1;
 }
 
-void unify_value(Address reg){
+bool unify_value(Address reg){
     switch (mode)
     {
     case read:
-        unify(reg, S);
+        if(unify(reg, S)){
+            return true;
+        }
         break;
     case 0:
-        heap[H] = registers[reg];
+        H.getCell() = reg.getCell();
         H += 1;
     default:
         break;
     }
     S += 1;
+    return false;
 }
 
 void put_variable(Address reg, Address arg_reg){
-    heap[H] = DataCell("REF", H);
-    registers[reg] = heap[H];
-    arg_registers[arg_reg] = heap[H];
+    H.getCell() = DataCell("REF", H);
+    reg.getCell() = H.getCell();
+    arg_reg.getCell() = H.getCell();
     H += 1;
 }
 
 void put_value(Address reg, Address arg_reg){
-    arg_registers[arg_reg] = registers[reg];
+    arg_reg.getCell() = reg.getCell();
 }
 
 void get_variable(Address reg, Address arg_reg){
-    registers[reg] = arg_registers[arg_reg];
+    reg.getCell() = arg_reg.getCell();
 }
 
-void get_value(Address reg, Address arg_reg){
-    unify(reg, arg_reg);
+bool get_value(Address reg, Address arg_reg){
+    return unify(reg, arg_reg);
 }
 
-void call(std::string str){
+bool call(std::string str){
+    CP = P;
     auto pos = labels.find(str);
     if (pos == labels.end())
     {
-        throw "Error: Call to nonexistent function " + str + ".\n";
+        return true;
     } else
     {
         P = pos->second - 1;
     }
+    return false;
+}
+
+void proceed(){
+    P = CP;
+}
+
+void allocate(int n){
+    if(!enviroments.empty()){
+        enviroments.top().perm_vars = perm_registers;
+    }
+    Enviroment new_env = Enviroment(CP);
+    perm_registers = new_env.perm_vars;
+    enviroments.push(new_env);
+}
+
+void deallocate(){
+    P = enviroments.top().CP;
+    enviroments.pop();
+    perm_registers = enviroments.top().perm_vars;
 }
 
 void wam_write(){
-    std::cout << term_to_string(Address(registers, 1)) << std::endl;
+    std::cout << term_to_string(Address(arg_registers, 0)) << std::endl;
 }
 
 void nl(){
@@ -306,7 +337,6 @@ void nl(){
 void load_builtin_predicates(){
 
     labels["write/1"] = code.size();
-    code.push_back(std::vector<std::string> {"get_variable", "X1", "A0"});
     code.push_back(std::vector<std::string> {"write"});
     code.push_back(std::vector<std::string> {"proceed"});
 
@@ -380,6 +410,7 @@ void load_query(std::string filename){
 }
 
 void run(){
+    bool fail = false;
     while (P < code.size())
     {
         std::vector<std::string> command = code[P];
@@ -394,13 +425,13 @@ void run(){
             set_value(string_to_address(command[1]));
         } else if (command[0] == "get_structure")
         {
-            get_structure(command[1], string_to_address(command[2]));
+            fail = get_structure(command[1], string_to_address(command[2]));
         } else if (command[0] == "unify_variable")
         {
             unify_variable(string_to_address(command[1]));
         } else if (command[0] == "unify_value")
         {
-            unify_value(string_to_address(command[1]));
+            fail = unify_value(string_to_address(command[1]));
         } else if (command[0] == "put_variable")
         {
             put_variable(string_to_address(command[1]), string_to_address(command[2]));
@@ -412,13 +443,19 @@ void run(){
             get_variable(string_to_address(command[1]), string_to_address(command[2]));
         } else if (command[0] == "get_value")
         {
-            get_value(string_to_address(command[1]), string_to_address(command[2]));
+            fail = get_value(string_to_address(command[1]), string_to_address(command[2]));
         } else if (command[0] == "call")
         {
-            call(command[1]);
+            fail = call(command[1]);
         } else if (command[0] == "proceed")
         {
-            return;
+            proceed();
+        } else if (command[0] == "allocate")
+        {
+            allocate(std::stoi(command[1]));
+        } else if (command[0] == "deallocate")
+        {
+            deallocate();
         } else if (command[0] == "write")
         {
             wam_write();
@@ -429,9 +466,16 @@ void run(){
         {
             std::cerr << "Warning: Unrecognized instruction " << command[0] << " in memory at line " << P <<". Skipping.\n";
         }
+        if(fail){
+            break;
+        }
         P++;
     }
-    std::cerr << "Warning: End of code reached without encountering proceed.\n";
+    if(fail){
+        std::cout << "false.\n";
+    } else{
+        std::cout << "true.\n";
+    }
 }
 
 int main(int argc, char** argv){
@@ -454,7 +498,7 @@ int main(int argc, char** argv){
         load_program(program);
         load_query(query);
         run();
-        print_memory();
+        // print_memory();
     } catch(char const* str){
         std::cerr << str;
         return 1;

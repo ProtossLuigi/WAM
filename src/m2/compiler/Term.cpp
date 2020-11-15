@@ -13,7 +13,7 @@ Term::Term(std::string name, std::vector<std::shared_ptr<Term>> subterms){
 
 bool Term::operator==(const Term& t){
     if(name == t.name && no_subterms == t.no_subterms){
-        for(int i=0; i<no_subterms; i++){
+        for(unsigned int i=0; i<no_subterms; i++){
             if(!(*subterms[i] == *t.subterms[i])){
                 return false;
             }
@@ -31,7 +31,7 @@ std::string Term::to_string(){
     std::string str = name;
     if(no_subterms > 0){
         str += "(";
-        for(int i=0; i<no_subterms; i++){
+        for(unsigned int i=0; i<no_subterms; i++){
             if(i > 0){
                 str += ",";
             }

@@ -1,1 +1,1 @@
-p(Z,h(Z,W),f(W)).
+p(X,Z), write(X), fail, write(Z).
