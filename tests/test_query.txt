@@ -1,1 +1,1 @@
-p(X,Z), write(X), fail, write(Z).
+get_numbers(X,Y), write(X), write(Y).

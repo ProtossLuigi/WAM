@@ -1,35 +1,46 @@
-p/2 :
-allocate 4
-get_structure f/2,A0
-unify_variable Y0
-unify_variable Y2
-get_structure g/2,A1
-unify_variable Y1
-unify_variable Y3
+pair/2 :
+try_me_else L0
+get_structure 1/0,A0
+get_structure 4/0,A1
+proceed
+L0 :
+trust_me
+get_structure 2/0,A0
+get_structure 3/0,A1
+proceed
+get_numbers/2 :
+allocate 2
+get_variable Y0,A0
+get_variable Y1,A1
+put_value Y0,A0
+call number1/1
+put_value Y0,A0
+call write/1
+put_value Y1,A0
+call number2/1
+put_value Y1,A0
+call write/1
 put_value Y0,A0
 put_value Y1,A1
-call q/2
-put_value Y2,A0
-put_value Y3,A1
-call r/2
+call pair/2
 deallocate
-q/2 :
-allocate 1
-get_variable Y0,A0
-get_structure a/0,A1
-put_value Y0,A0
-call h/1
-deallocate
-h/1 :
-get_structure x/0,A0
+number2/1 :
+try_me_else L1
+get_structure 3/0,A0
 proceed
-r/2 :
-allocate 1
-get_structure y/0,A0
-get_variable Y0,A1
-put_value Y0,A0
-call i/1
-deallocate
-i/1 :
-get_structure b/0,A0
+L1 :
+trust_me
+get_structure 4/0,A0
+proceed
+number1/1 :
+try_me_else L2
+get_structure 0/0,A0
+proceed
+L2 :
+retry_me_else L3
+get_structure 1/0,A0
+proceed
+L3 :
+trust_me
+get_structure 2/0,A0
 proceed

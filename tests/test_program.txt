@@ -1,5 +1,8 @@
-p(f(X,Y),g(A,B)) :- q(X,A), r(Y,B).
-q(X,a) :- h(X).
-h(x).
-r(y,B) :- i(B).
-i(b).
+get_numbers(X,Y):-number1(X),write(X),number2(Y),write(Y),pair(X,Y).
+number1(0).
+number1(1).
+number1(2).
+number2(3).
+number2(4).
+pair(1,4).
+pair(2,3).
