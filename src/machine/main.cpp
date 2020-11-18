@@ -334,9 +334,9 @@ bool get_value(Address reg, Address arg_reg){
 bool call(std::string str){
     CP = P;
     std::smatch match;
-    std::regex header("\\w+\\/(\\d+)");
+    std::regex header("(\\w+|=)\\/(\\d+)");
     if(std::regex_match(str, match, header)){
-        num_of_args = std::stoi(match[1]);
+        num_of_args = std::stoi(match[2]);
     }
     auto pos = labels.find(str);
     if (pos == labels.end())
@@ -422,6 +422,10 @@ void nl(){
 // Machine instructions end
 
 void load_builtin_predicates(){
+    labels["=/2"] = code.size();
+    code.push_back(std::vector<std::string> {"get_variable", "X0", "A0"});
+    code.push_back(std::vector<std::string> {"get_value", "X0", "A1"});
+    code.push_back(std::vector<std::string> {"proceed"});
 
     labels["write/1"] = code.size();
     code.push_back(std::vector<std::string> {"write"});
@@ -439,7 +443,7 @@ void load_program(std::string filename){
     std::string line;
     std::smatch match;
     std::regex r_label("[ \\t]*([\\w\\/]+)[ \\t]*\\:$");
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+(\\w+|\\w+\\/\\d+)([ \\t]*,[ \\t]*(\\w+|\\w+\\/\\d+))*)?$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([[:alnum:]=\\/]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {
@@ -475,7 +479,7 @@ void load_query(std::string filename){
     f.open(filename, std::ifstream::in);
     std::string line;
     std::smatch match;
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+(\\w+|\\w+\\/\\d+)([ \\t]*,[ \\t]*(\\w+|\\w+\\/\\d+))*)?$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([[:alnum:]=\\/]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {

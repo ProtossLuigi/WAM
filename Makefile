@@ -4,7 +4,7 @@ SRC_PATH = ./src
 
 .PHONY: all clean cleanall
 
-all: wam compiler
+all: wam compiler clean
 
 main.o: $(SRC_PATH)/machine/main.cpp
 	$(CXX) -c $(CXXFLAGS) $< -o $@

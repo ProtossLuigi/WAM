@@ -1,8 +1,11 @@
-allocate 2
-put_variable Y0,A0
-put_variable Y1,A1
-call get_numbers/2
+allocate 1
+put_structure a/0,X0
+put_structure b/0,X1
+put_structure f/2,A0
+set_value X0
+set_value X1
+put_variable Y0,A1
+call =/2
 put_value Y0,A0
 call write/1
-put_value Y1,A0
-call write/1
+call nl/0

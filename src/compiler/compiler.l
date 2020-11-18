@@ -14,5 +14,7 @@
 \)                      {yylval.lineno = yylineno; return RPAR;}
 \.                      {yylval.lineno = yylineno; return DOT;}
 \:\-                    {yylval.lineno = yylineno; return IMPLICATION;}
+\?\-                    {yylval.lineno = yylineno; return QUERY;}
+=                       {yylval.lineno = yylineno; return EQUALS;}
 .
 %%

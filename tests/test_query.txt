@@ -1,1 +1,1 @@
-get_numbers(X,Y), write(X), write(Y).
+?- f(a,b) = X, write(X), nl.

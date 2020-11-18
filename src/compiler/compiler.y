@@ -260,6 +260,8 @@
 %token RPAR
 %token DOT
 %token IMPLICATION
+%token QUERY
+%token EQUALS
 %token ERROR
 %%
 
@@ -297,13 +299,13 @@ program:      predicates                {
                                             }
                                             fprintf(yyout, "%s", code.c_str());
                                         }
-            | terms DOT                 {
+            | QUERY terms DOT           {
                                             std::vector<std::vector<std::shared_ptr<Term>>> regs;
                                             std::vector<std::shared_ptr<Term>> temp_vars;
                                             std::vector<std::shared_ptr<Term>> perm_vars;
-                                            for(unsigned int i=0; i<$1.ts.size(); i++){
+                                            for(unsigned int i=0; i<$2.ts.size(); i++){
                                                 std::vector<std::shared_ptr<Term>> local_vars;
-                                                regs.push_back(allocate_registers($1.ts[i], local_vars));
+                                                regs.push_back(allocate_registers($2.ts[i], local_vars));
                                                 for(std::shared_ptr<Term> t : local_vars){
                                                     if(find_in_vector(perm_vars, t) == -1){
                                                         int r;
@@ -326,8 +328,8 @@ program:      predicates                {
                                             }
                                             std::string code = "allocate " + std::to_string(perm_vars.size()) + "\n";
                                             std::set<int> seen_perm_regs;
-                                            for(unsigned int i=0; i<$1.ts.size(); i++){
-                                                code += compile_query(regs[i], perm_vars, seen_perm_regs, $1.ts[i]);
+                                            for(unsigned int i=0; i<$2.ts.size(); i++){
+                                                code += compile_query(regs[i], perm_vars, seen_perm_regs, $2.ts[i]);
                                             }
                                             fprintf(yyout, "%s", code.c_str());
                                         }
@@ -409,6 +411,14 @@ term:         STRUCT LPAR terms RPAR    {
             | VAR                       {
                                             $$.lineno = $1.lineno;
                                             $$.ts.push_back(std::make_shared<Term>($1.str));
+                                        }
+            | term EQUALS term          {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts = std::vector<std::shared_ptr<Term>>();
+                                            $$.ts.push_back(std::make_shared<Term>("="));
+                                            $$.ts[0]->no_subterms = 2;
+                                            $$.ts[0]->subterms.push_back($1.ts[0]);
+                                            $$.ts[0]->subterms.push_back($3.ts[0]);
                                         }
 ;
 terms:        terms COMMA term          {
