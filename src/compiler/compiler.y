@@ -3,7 +3,7 @@
     #include <string>
     #include <string.h>
     #include <vector>
-    #include "src/m3/compiler/Term.hpp"
+    #include "src/compiler/Term.hpp"
 
     struct YYSTYPE{
         std::string                         str;
