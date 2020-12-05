@@ -34,6 +34,8 @@ int B = -1;
 unsigned int num_of_args;
 unsigned int HB = 0;
 
+std::string term_to_string(Address addr);
+
 std::string address_to_string(Address addr){
     if(addr.bloc == &heap){
             return "H" + std::to_string(addr.index);
@@ -102,7 +104,7 @@ void print_memory(){
 
 std::pair<std::string, unsigned int> get_functor(std::string str){
     std::smatch match;
-    if(std::regex_match(str, match, std::regex("(\\w+)\\/(\\d+)"))){
+    if(std::regex_match(str, match, std::regex("([\\w\\.\\[\\]]+)\\/(\\d+)"))){
         return std::pair<std::string, int>(match[1], std::stoi(match[2]));
     } else{
         throw "Error: Argument " + str + " is not a representation of a functor.\n";
@@ -116,6 +118,38 @@ Address deref(Address addr){
     return addr;
 }
 
+bool is_list(Address addr){
+    DataCell cell = deref(addr).getCell();
+    if(cell.tag == "STR"){
+        if (heap[cell.getAddr()].tag == "[]/0")
+        {
+            return true;
+        } else if (heap[cell.getAddr()].tag == "./2")
+        {
+            return is_list(cell.getAddr()+2);
+        } else
+        {
+            return false;
+        }
+    }
+    return false;
+}
+
+std::string list_to_string(Address addr){
+    addr = deref(addr).getCell().getAddr();
+    std::string str = "";
+    while (addr.getCell().tag != "[]/0")
+    {
+        if (str != "")
+        {
+            str += ",";
+        }
+        str += term_to_string(addr+1);
+        addr = deref(addr+2).getCell().getAddr();
+    }
+    return str;
+}
+
 std::string term_to_string(Address addr){
     DataCell cell = deref(addr).getCell();
     if (cell.tag == "REF")
@@ -123,6 +157,13 @@ std::string term_to_string(Address addr){
         return "_" + address_to_string(cell.getAddr());
     } else if (cell.tag == "STR")
     {
+        if (is_list(addr))
+        {
+            std::string str = "[";
+            str += list_to_string(addr);
+            str += "]";
+            return str;
+        }
         functor f = get_functor(cell.getAddr().getCell().tag);
         std::string str = f.first;
         if (f.second > 0)
@@ -171,10 +212,10 @@ Address string_to_address(std::string str){
 
 void bind(Address& a, Address& b){
     if(a.getCell().getAddr() == a){
-        a.getCell().setAddr(b);
+        a.getCell() = b.getCell();
         trail.push_back(a);
     } else{
-        b.getCell().setAddr(a);
+        b.getCell() = a.getCell();
         trail.push_back(b);
     }
 }
@@ -434,6 +475,21 @@ void load_builtin_predicates(){
     labels["nl/0"] = code.size();
     code.push_back(std::vector<std::string> {"nl"});
     code.push_back(std::vector<std::string> {"proceed"});
+
+    labels["./2"] = code.size();
+    code.push_back(std::vector<std::string> {"try_me_else", "DL0"});
+    code.push_back(std::vector<std::string> {"get_structure", "[]/0", "A1"});
+    code.push_back(std::vector<std::string> {"proceed"});
+    labels["DL0"] = code.size();
+    code.push_back(std::vector<std::string> {"trust_me"});
+    code.push_back(std::vector<std::string> {"allocate", "1"});
+    code.push_back(std::vector<std::string> {"get_variable", "Y0", "A1"});
+    code.push_back(std::vector<std::string> {"put_variable", "Y0", "A0"});
+    code.push_back(std::vector<std::string> {"put_structure", "./2", "A1"});
+    code.push_back(std::vector<std::string> {"set_variable", "X0"});
+    code.push_back(std::vector<std::string> {"set_variable", "X1"});
+    code.push_back(std::vector<std::string> {"call", "=/2"});
+    code.push_back(std::vector<std::string> {"deallocate"});
 }
 
 void load_program(std::string filename){
@@ -442,8 +498,8 @@ void load_program(std::string filename){
     f.open(filename, std::ifstream::in);
     std::string line;
     std::smatch match;
-    std::regex r_label("[ \\t]*([\\w\\/]+)[ \\t]*\\:$");
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([[:alnum:]=\\/]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/]+))*)?$");
+    std::regex r_label("[ \\t]*([\\w\\/\\.]+)[ \\t]*\\:$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/\\[\\]\\.]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {
@@ -466,7 +522,7 @@ void load_program(std::string filename){
             code.push_back(code_line);
         } else if (line != "")
         {
-            std::cerr << "Warning: Unrecognized code at line " << line_no << std::endl;
+            std::cerr << "Warning: Unrecognized program code at line " << line_no << std::endl;
         }
         line_no++;
     }
@@ -479,7 +535,7 @@ void load_query(std::string filename){
     f.open(filename, std::ifstream::in);
     std::string line;
     std::smatch match;
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([[:alnum:]=\\/]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/]+))*)?$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/\\[\\]\\.]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {
@@ -493,7 +549,7 @@ void load_query(std::string filename){
             code.push_back(code_line);
         } else if (line != "")
         {
-            std::cerr << "Warning: Unrecognized code at line " << line_no << std::endl;
+            std::cerr << "Warning: Unrecognized query code at line " << line_no << std::endl;
         }
         line_no++;
     }
@@ -619,6 +675,9 @@ int main(int argc, char** argv){
         run();
         // print_memory();
     } catch(char const* str){
+        std::cerr << str;
+        return 1;
+    } catch(std::string str){
         std::cerr << str;
         return 1;
     }

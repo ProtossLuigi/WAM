@@ -258,10 +258,13 @@
 %token COMMA
 %token LPAR
 %token RPAR
+%token LBR
+%token RBR
 %token DOT
 %token IMPLICATION
 %token QUERY
 %token EQUALS
+%token VERT
 %token ERROR
 %%
 
@@ -419,6 +422,32 @@ term:         STRUCT LPAR terms RPAR    {
                                             $$.ts[0]->no_subterms = 2;
                                             $$.ts[0]->subterms.push_back($1.ts[0]);
                                             $$.ts[0]->subterms.push_back($3.ts[0]);
+                                        }
+            | LBR RBR                   {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts.push_back(std::make_shared<Term>("[]"));
+                                        }
+            | LBR terms RBR             {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts.push_back(std::make_shared<Term>("[]"));
+                                            for(int i=$2.ts.size()-1; i>-1; i--){
+                                                std::shared_ptr<Term> list_term = std::make_shared<Term>(".");
+                                                list_term->no_subterms = 2;
+                                                list_term->subterms.push_back($2.ts[i]);
+                                                list_term->subterms.push_back($$.ts[0]);
+                                                $$.ts[0] = list_term;
+                                            }
+                                        }
+            | LBR terms VERT term RBR   {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts = $4.ts;
+                                            for(int i=$2.ts.size()-1; i>-1; i--){
+                                                std::shared_ptr<Term> list_term = std::make_shared<Term>(".");
+                                                list_term->no_subterms = 2;
+                                                list_term->subterms.push_back($2.ts[i]);
+                                                list_term->subterms.push_back($$.ts[0]);
+                                                $$.ts[0] = list_term;
+                                            }
                                         }
 ;
 terms:        terms COMMA term          {
