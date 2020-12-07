@@ -10,10 +10,15 @@
 #include "ChoicePoint.hpp"
 #include <stack>
 #include <unordered_map>
+#include "../compiler_y.hpp"
+
+extern int compile(std::string in_string, std::string& out_string);
 
 typedef std::pair<std::string,unsigned int> functor;
 
 enum memory_mode {write, read};
+
+unsigned int code_size;
 
 MemoryBloc heap;
 MemoryBloc registers;
@@ -492,10 +497,8 @@ void load_builtin_predicates(){
     code.push_back(std::vector<std::string> {"deallocate"});
 }
 
-void load_program(std::string filename){
+void load_program(std::iostream& f){
     load_builtin_predicates();
-    std::ifstream f;
-    f.open(filename, std::ifstream::in);
     std::string line;
     std::smatch match;
     std::regex r_label("[ \\t]*([\\w\\/\\.]+)[ \\t]*\\:$");
@@ -526,13 +529,11 @@ void load_program(std::string filename){
         }
         line_no++;
     }
-    f.close();
+    code_size = code.size();
 }
 
-void load_query(std::string filename){
+void load_query(std::iostream& f){
     P = code.size();
-    std::ifstream f;
-    f.open(filename, std::ifstream::in);
     std::string line;
     std::smatch match;
     std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/\\[\\]\\.]+))*)?$");
@@ -553,7 +554,6 @@ void load_query(std::string filename){
         }
         line_no++;
     }
-    f.close();
 }
 
 void run(){
@@ -653,33 +653,157 @@ void run(){
     }
 }
 
+void reset_memory(){
+    code.resize(code_size);
+    heap = MemoryBloc();
+    registers = MemoryBloc();
+    arg_registers = MemoryBloc();
+    perm_registers = MemoryBloc();
+    and_stack = std::vector<Enviroment>();
+    or_stack = std::vector<ChoicePoint>();
+    trail = std::vector<Address>();
+    H = Address(heap, 0);
+    P = 0;
+    CP = code_size;
+    E = -1;
+    B = -1;
+    HB = 0;
+}
+
+std::string string_from_file(const std::string& filename){
+    std::ifstream ifs;
+    std::stringstream ss;
+    ifs.open(filename, std::ios_base::in);
+    ss << ifs.rdbuf();
+    ifs.close();
+    return ss.str();
+}
+
 int main(int argc, char** argv){
-    std::string query = "";
-    std::string program = "";
-    for(int i = 1; i < argc; i++){
-        if(strcmp(argv[i], "-q") == 0 && i+1 < argc){
-            query = std::string(argv[i+1]);
-        } else if(strcmp(argv[i], "-p") == 0 && i+1 < argc){
-            program = std::string(argv[i+1]);
+    if (argc > 1 && strcmp(argv[1],"-c") == 0)
+    {
+        if (argc > 2)
+        {
+            std::string in_filename = argv[2];
+            std::string out_filename = "a.out";
+            if (argc > 3)
+            {
+                out_filename = argv[3];
+            }
+            std::string si = string_from_file(in_filename), so;
+            if (compile(si, so) > 0)
+            {
+                std::cerr << "Error: Compilation error.\n";
+                return 1;
+            }
+            std::fstream fs_out;
+            fs_out.open(out_filename, std::fstream::out);
+            fs_out << so;
+            fs_out.close();
+            return 0;
+        } else
+        {
+            std::cerr << "Error: No input file specified.\n";
+            return 1;
         }
-    }
-    if(query == ""){
-        if(query == ""){
-            std::cout << "No input query.\n";
+    } else if (argc > 1 && strcmp(argv[1],"-e") == 0)
+    {
+        if (argc > 3)
+        {
+            std::fstream pfs, qfs;
+            pfs.open(argv[2], std::fstream::in);
+            qfs.open(argv[3], std::fstream::out);
+            try
+            {
+                load_program(pfs);
+                load_query(qfs);
+                run();
+            }
+            catch(char const* e)
+            {
+                std::cerr << e << '\n';
+                pfs.close();
+                qfs.close();
+                return 1;
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << e << '\n';
+                pfs.close();
+                qfs.close();
+                return 1;
+            }
+            pfs.close();
+            qfs.close();
+            return 0;
+        } else
+        {
+            std::cerr << "Error: Not enough input files specified.\n";
+            return 1;
         }
-        return 1;
+    } else
+    {
+        if (argc > 1)
+        {
+            std::string pis = string_from_file(argv[1]), pos;
+            if (compile(pis, pos) != 0)
+            {
+                std::cerr << "Error: Program compilation error.\n";
+                return 1;
+            }
+            std::stringstream pss(pos);
+            try
+            {
+                load_program(pss);
+            }
+            catch(char const* e)
+            {
+                std::cerr << e << '\n';
+                return 1;
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << e << '\n';
+                return 1;
+            }
+        } else
+        {
+            std::stringstream pss;
+            load_program(pss);
+        }
+        std::string query;
+        while (std::cin.good())
+        {
+            std::cout << "?- ";
+            if(!std::cin.good()){
+                return 0;
+            }
+            std::cin >> std::ws;
+            getline(std::cin, query);
+            std::string qos;
+            if (compile("?-"+query, qos) != 0)
+            {
+                std::cerr << "Error: Program compilation error.\n";
+                return 1;
+            }
+            std::stringstream qss(qos);
+            try
+            {
+                load_query(qss);
+                run();
+            }
+            catch(char const* e)
+            {
+                std::cerr << e << '\n';
+                return 1;
+            }
+            catch(const std::string& e)
+            {
+                std::cerr << e << '\n';
+                return 1;
+            }
+            reset_memory();
+        }
+        return 0;
     }
-    try{
-        load_program(program);
-        load_query(query);
-        run();
-        // print_memory();
-    } catch(char const* str){
-        std::cerr << str;
-        return 1;
-    } catch(std::string str){
-        std::cerr << str;
-        return 1;
-    }
-    return 0;
 }

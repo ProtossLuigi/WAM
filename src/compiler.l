@@ -3,6 +3,7 @@
     #include "compiler_y.hpp"
     #include <string>
     int yylex();
+    extern std::string ostring;
 %}
 %option yylineno
 %%
@@ -21,3 +22,11 @@
 \|                      {yylval.lineno = yylineno; return VERT;}
 .
 %%
+
+int compile(std::string in_string, std::string& out_string){
+    yy_scan_string(in_string.c_str());
+    int result = yyparse();
+    out_string = ostring;
+    yy_delete_buffer(YY_CURRENT_BUFFER);
+    return result;
+}

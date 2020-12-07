@@ -3,7 +3,7 @@
     #include <string>
     #include <string.h>
     #include <vector>
-    #include "src/compiler/Term.hpp"
+    #include "src/Term.hpp"
 
     struct YYSTYPE{
         std::string                         str;
@@ -17,11 +17,15 @@
     #include <set>
     #include <queue>
     #include <unordered_map>
+    #include <sstream>
     
     int yylex();
     int yyerror(const char*);
     extern FILE *yyin;
     extern FILE *yyout;
+    extern int main_loop(int rgc, char** argv);
+
+    std::string ostring;
 
     template<typename T>
     int find_in_vector(const std::vector<std::shared_ptr<T>>& v, const std::shared_ptr<T>& val){
@@ -300,7 +304,8 @@ program:      predicates                {
                                                     }
                                                 }
                                             }
-                                            fprintf(yyout, "%s", code.c_str());
+                                            ostring = code;
+                                            YYACCEPT;
                                         }
             | QUERY terms DOT           {
                                             std::vector<std::vector<std::shared_ptr<Term>>> regs;
@@ -334,11 +339,13 @@ program:      predicates                {
                                             for(unsigned int i=0; i<$2.ts.size(); i++){
                                                 code += compile_query(regs[i], perm_vars, seen_perm_regs, $2.ts[i]);
                                             }
-                                            fprintf(yyout, "%s", code.c_str());
+                                            ostring = code;
+                                            YYACCEPT;
                                         }
             | error                     {
                                             std::string msg ("Error in line " + std::to_string($1.lineno) + ".\n");
                                             yyerror(msg.c_str());
+                                            YYABORT;
                                         }
 ;
 predicates:   predicates predicate      {
@@ -467,24 +474,70 @@ int yyerror(const char* s){
     return 1;
 }
 
-int main(int argc, char** argv){
-    yyin = stdin;
-    yyout = stdout;
-    bool input_set = false;
-    bool output_set = false;
-    for(int i=1; i<argc; i++){
-        if(strcmp(argv[i], "-i") == 0 && !input_set && argc > i+1){
-            yyin = fopen(argv[i+1], "r");
-            input_set = true;
-            i++;
-        } else if(strcmp(argv[i], "-o") == 0 && !output_set && argc > i+1){
-            yyout = fopen(argv[i+1], "w");
-            output_set = true;
-            i++;
-        }
+ssize_t my_read(void* cookie, char* buf, size_t size){
+    ((std::stringstream*)cookie)->read(buf, size);
+    if(((std::stringstream*)cookie)->fail()){
+        return -1;
+    } else{
+        return strlen(buf);
     }
-    yyparse();
-    fclose(yyin);
-    fclose(yyout);
-    return 0;
 }
+
+ssize_t my_write(void *cookie, const char *buf, size_t size){
+    ((std::stringstream*)cookie)->write(buf, size);
+    if(((std::stringstream*)cookie)->fail()){
+        return 0;
+    } else{
+        return size;
+    }
+}
+
+int my_in_seek(void *cookie, off64_t *offset, int whence){
+    std::ios_base::seekdir way;
+    switch(whence){
+    case SEEK_SET:
+        way = std::ios_base::beg;
+        break;
+    case SEEK_CUR:
+        way = std::ios_base::cur;
+        break;
+    case SEEK_END:
+        way = std::ios_base::end;
+        break;
+    default:
+        return -1;
+    }
+    ((std::stringstream*)cookie)->seekg(*offset, way);
+    *offset = ((std::stringstream*)cookie)->tellg();
+    if(((std::stringstream*)cookie)->fail()){
+        return -1;
+    } else{
+        return 0;
+    }
+}
+
+int my_out_seek(void *cookie, off64_t *offset, int whence){
+    std::ios_base::seekdir way;
+    switch(whence){
+    case SEEK_SET:
+        way = std::ios_base::beg;
+        break;
+    case SEEK_CUR:
+        way = std::ios_base::cur;
+        break;
+    case SEEK_END:
+        way = std::ios_base::end;
+        break;
+    default:
+        return -1;
+    }
+    ((std::stringstream*)cookie)->seekp(*offset, way);
+    *offset = ((std::stringstream*)cookie)->tellp();
+    if(((std::stringstream*)cookie)->fail()){
+        return -1;
+    } else{
+        return 0;
+    }
+} 
+
+
