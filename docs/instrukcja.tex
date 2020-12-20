@@ -1,0 +1,27 @@
+\chapter{Wykorzystane technologie i instrukcja obsługi}
+\thispagestyle{chapterBeginStyle}
+
+\iffalse
+W tym rozdziale należy przedstawić analizę zagadnienia, które podlega informatyzacji. Należy zidentyfikować i opisać obiekty składowe rozważanego wycinka rzeczywistości i ich wzajemne relacje (np.\ użytkowników systemu i ich role). Należy szczegółowo omówić procesy jakie zachodzą w systemie i które będą informatyzowane, takie jak np.\ przepływ dokumentów.
+Należy sprecyzować i wypunktować założenia funkcjonalne i poza funkcjonalne dla projektowanego systemu.
+Jeśli istnieją aplikacje realizujące dowolny podzbiór zadanych funkcjonalności realizowanego systemu należy przeprowadzić ich analizę porównawczą, wskazując na różnice bądź innowacyjne elementy, które projektowany w pracy system informatyczny będzie zawierał.
+Należy odnieść się do uwarunkowań prawnych związanych z procesami przetwarzania danych w projektowanym systemie.
+Jeśli zachodzi konieczność, należy wprowadzić i omówić model matematyczny elementów systemu na odpowiednim poziomie abstrakcji.
+
+{\color{dgray}
+W niniejszym rozdziale omówiono koncepcję architektury programowej systemu \ldots. W
+szczególny sposób \ldots. Omówiono założenia funkcjonalne i niefunkcjonalne podsystemów \ldots. Przedstawiono
+mechanizmy \ldots. Sklasyfikowano systemy ze względu na \ldots. Omówiono istniejące rozwiązania informatyczne o podobnej funkcjonalności \ldots (zobacz \cite{JCINodesChord}).
+}
+\fi
+
+Program działa w terminalu na linuksie (był testowany na Ubuntu w WSL). Do jego kompilacji zostały użyte: g++ 7.5.0, flex 2.6.4, GNU Bison 3.0.4 i GNU Make 4.1. WAM został napisany w C++ w standardzie C++14.\\
+
+Sposoby użycia:\\
+\texttt{wam [<program>]}\\
+\texttt{wam -c <input> [<output>]}\\
+\texttt{wam -e <program> <query>}\\
+
+W pierwszym przypadku użycia \texttt{program} jest ścieżką do pliku z programem napisanym w języku Prolog. Program jest ładowany do pamięci, następnie WAM wyświtla "?-" i czeka na użytkownika, żeby wpisał zapytanie. Zapytanie musi być w jednej linii i kończyć się kropką. Po wykonaniu zapytania WAM resetuje swoją pamięć i oczekuje następnego zapytania od użytkownika i tak dalej w pętli aż użytkownik nie wyjdzię manualnie (ctrl+C).\\
+W drugim przypadku użycia pobiera z pliku tektowego \texttt{input} program lub zapytanie i kompiluje go do listy instrukcji maszyny Warrena, które umieszcze w pliku tekstowym \texttt{output} jeśli został podany lub w \texttt{a.out} w przeciwnym wypadku. Kompilator rozróżnia program i zapytanie Prologa po tym, że zapytanie musi rozpoczynać się od "?-".\\
+W trzecim przypadku użycia \texttt{program} i \texttt{query} są plikami tekstowymi zawierającymi instrukcje maszyny Warrena, takimi jakie można wygenerować używając opcji \texttt{-c}. WAM ładuje wykonuje te instrukcje pomijając kompilator.\\

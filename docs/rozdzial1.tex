@@ -15,4 +15,17 @@ mechanizmy \ldots. Sklasyfikowano systemy ze względu na \ldots. Omówiono istni
 }
 \fi
 
-W tym rozdziale opiszę technologie (np. wersję kompilatora) i sposób użycia programu będącego maszyną.
+WAM jest główną częścią programu i odpowida za przetwarzanie zapytań i programów dostarczanych jako lista instrukcji maszyny Warrena. Każde zapytanie składa się z termów następujących po sobie. Jeżeli maszynie uda się je wszystkie udowodnić, to zwraca wynik "prawda", w przeciwnym wypdaku zwraca "fałsz".\\
+Do kluczowych w implementacji operacji należą:\\
+
+\section{Unifikacja}
+
+Żeby udowodnić term z zapytania musi być on najpierw dopasowany do tzw. głowy predykatu. Polega to na sprawdzeniu, czy struktura oba termów jest taka sama i przypisaniu zmiennych tam gdzie to konieczne. W tym celu oba porównywane termy można przedstawić jako drzewa, gdzie dziećmi każdego wierzchołka są jego podtermy, a liśćmi są formuły atomowe. Wtedy oba drzewa się porównuje przechodząc po nich algorytmem przeszukania w szerz. Tam gdzie któryś z porównywanych wierzchołków jest nieprzypisaną zmienną, jest ona przypisywana do odpowiadającego termu z drugiego drzewa. Jeśli któreś porównywane wierzchołki różnią się to operacja $unify$ zwraca $fail$.
+
+\section{Stosowanie reguł}
+
+Term z zapytania może być udowodniony przez zunifikowanie go z termem faktu, ale może być też udowodniony jeśli da się go zunifikować z głową regułu, a następnie udowodnić warunki reguły. Termy warunków funkcjonują wtedy tak jak termy zapytania. Reguły mogą być wywoływane przez siebie na wzajem tak jak funkcje w innych językach. Ich implementacja wymaga wymiennych środowisk w których istnieją różne zmienne.
+
+\section{Nawroty}
+
+Jedną z ważniejszych cech Prologa jest jego niedeterminizm. Często jeden term można próbować udowodnić na wiele sposobów i maszyna musi być w stanie wykonać nawrót i spróbować odwołać się do innej klauzuli, jeśli obecna zwraca $fail$. Wymaga to tworzenia specjalnych punktów do których maszyna może wrócić, przywracając poprzedni stan swojej pamięci.

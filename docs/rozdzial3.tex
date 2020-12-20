@@ -100,30 +100,85 @@ sub process_req(){
 \end{small}
 \fi
 
-W tym rozdziale opiszę wszystkie instrukcje akceptowane przez moją implementację WAM.
+Główna pętla progarmu polega na wywołaniu instrukcji \texttt{CODE[P]} i zwiększeniu \texttt{P} o 1 do momentu dojścia do końca kodu lub w trakcie wykonywania instrkcji zwrócenia $fail$. W pierwszym wypadku pojawia wykonywanie zapytania kończy się powodzeniem i użytkownik zostaje zapytany czy chce kontynuować. Jeśli wybierze "tak" to program wraca do wykonywania zapytania, tak jakby instrukcja zwróciła $fail$. Jeśli wykowana instrukcja zwróci $fail$, to jeśli jest aktywny punkt wyboru to wyknonywana jest operacja nawrotu i zapytanie wykonywane jest dalej. Jeżeli nie ma aktywnego punktu wyboru, to wykonywanie zapytania kończy się z wynikiem $fałsz$.\\
+Poniżej opisane są wszystkie obsługiwane instrukcje.
 
-\section{\texttt{put\_structure} $f/n$,\texttt{X}$_i$}
+\section{\texttt{put\_structure} $f/n$,\texttt{X}$i$}
 
-\section{\texttt{set\_variable} \texttt{X}$_i$}
+Dodaje na koniec sterty komórkę STR i komórkę funktora $f/n$, której adres zawiera. Następnie kopiuje tą komórkę STR do rejestru o adresie \texttt{X}$i$.
 
-\section{\texttt{set\_value} \texttt{X}$_i$}
+\section{\texttt{set\_variable} \texttt{X}$i$}
 
-\section{\texttt{get\_structure} $f/n$,\texttt{X}$_i$}
+Dodaje na koniec sterty nieprzypisaną komórkę REF, a następnie umieszcza w rejestrze \texttt{X}$i$ komórkę REF z jej adresem.
 
-\section{\texttt{unify\_variable} \texttt{X}$_i$}
+\section{\texttt{set\_value} \texttt{X}$i$}
 
-\section{\texttt{unify\_value} \texttt{X}$_i$}
+Dodaje na koniec sterty komórkę będącą kopią komórki z rejestru \texttt{X}$i$.
 
-\section{\texttt{call} $p/n$}
+\section{\texttt{get\_structure} $f/n$,\texttt{X}$i$}
+
+Wywołuje $deref(\texttt{X}i)$ i jeżeli otrzymany adres pokazuje na nieprzypisaną komórkę, to dodaje na koniec sterty komórkę STR i komórkę funktora $f/n$, której adres zawiera. Następnie wywołuje $bind(deref(\texttt{X}i),\texttt{H})$ i ustawia tryb maszyny na $write$ i adres \texttt{S} na koniec sterty. W przeciwnym wypadku jeśli $deref(\texttt{X}i)$ pokazuje na komórkę STR z adresem $addr$, to ustawia \texttt{S} na $addr+1$ i tryb maszyny na $read$.
+
+\section{\texttt{unify\_variable} \texttt{X}$i$}
+
+Jeśli maszyna jest w trybie $read$ to kopiuje komórkę z adresu \texttt{S} do rejestru \texttt{X}$i$.\\
+Jeśli maszyna jest w trybie $write$ to dodaje na koniec stery nieprzypisaną komórkę i kopiuje ją do rejestru \texttt{X}$i$.
+
+\section{\texttt{unify\_value} \texttt{X}$i$}
+
+Jeśli maszyna jest w trybie $read$ to wywołuje $unify(\texttt{X}i, \texttt{S})$.\\
+Jeśli maszyna jest w trybie $write$ to kopiuje komórkę z rejestru \texttt{X}$i$ na koniec sterty.
+
+\section{\texttt{put\_variable} \texttt{X}$i$ \texttt{A}$j$}
+
+Dodaje na koniec sterty nieprzypisaną komórkę, a następnie kopiuje ją do rejestrów \texttt{X}$i$ i \texttt{A}$j$.
+
+\section{\texttt{put\_value} \texttt{X}$i$ \texttt{A}$j$}
+
+Kopiuje komórkę z rejestru \texttt{X}$i$ do rejestru \texttt{A}$j$.
+
+\section{\texttt{get\_variable} \texttt{X}$i$ \texttt{A}$j$}
+
+Kopiuje komórkę z rejestru \texttt{A}$j$ do rejestru \texttt{X}$i$.
+
+\section{\texttt{get\_value} \texttt{X}$i$ \texttt{A}$j$}
+
+Wywołuje $unify(\texttt{X}i, \texttt{A}j)$.
+
+\section{\texttt{call} $label$}
+
+$label$ jest stringiem. Jeśli $label$ jest postaci $*/n$, gdzie $n$ jest liczbą naturalną, to ustawia \texttt{num\_of\_args}$ = n$. Wyszukuje w kodzie wiersza $p$ oznaczonego etykietą $label$. Jeśli takiej etykiety w kodzie nie ma to zwraca \texttt{fail}.
+W przeciwnym wypdaku ustawia \texttt{CP}$ = $\texttt{P} i \texttt{P}$ = p - 1$.
 
 \section{\texttt{proceed}}
 
+Ustawia \texttt{P}$ = $\texttt{CP}.
+
 \section{\texttt{allocate} $N$}
 
+Tworzy nowe środowisko $env$ przechowujące obecne \texttt{E} i \texttt{CP} i wstawia je do stosu \texttt{and\_stack} na indeksie $max(B,E)+1$. Następnie przełącza się na środowisko $env$.\\
+$N$ jest argumentem oznaczającym ilość rejestrów argumentów, ale ponieważ rejestry są przechowywane w tablicy dynamicznej, w obecnej wersji ten argument nic nie robi.
+
 \section{\texttt{deallocate}}
+
+Ustawia \texttt{P}$ = $\texttt{and\_stack[E].CP}, a następnie przestawia aktywne środowisko na środowisko o indeksie przechowywanym przez obecnie aktywne środowisko.
+
+\section{\texttt{try\_me\_else} $label$}
+
+Tworzy nowy punkt wyboru gdzie \texttt{BP}$ = label$. Następnie ustawia \texttt{B}$ = $\texttt{E} i \texttt{HB}$ = $\texttt{H}.
+
+\section{\texttt{retry\_me\_else} $label$}
+
+Przywraca stan maszyny do stanu bezpośrednio po utworzeniu ostatniego punktu wyboru. Także zamienia etykietę pamiętaną przez aktywny punkt wyboru na $label$. Nie zmienia rejestru \texttt{P}.
+
+\section{\texttt{trust\_me}}
+
+Przywraca stan maszyny do stanu z przed utworzenia ostatniego punktu wyboru, usuwając go. Nie zmienia rejestru \texttt{P}.
 
 \section{Instrukcje specjalne}
 
 Niektóre instrukcje pojawiają się w kodzie generowanym przez samą maszynę przed załadowaniem programu, ale nie powinny być zawierane przez ładowany program.
 
 \subsection{\texttt{write}}
+
+Wypisuje na standardowe wyjście tektową reprezentacje termu na który pokazuje adres $deref($\texttt{A0}$)$. Jeśli otrzymany adres pokazuje na nieprzypisaną komórkę, wyświetlany jest jako \texttt{\_}$mn$, gdzie $m$ oznacza block pamięci w której zanjduje się zmienna: $H$ - sterta, $X$ - rejestry tymczasowe, $A$ - rejestry argumentów, $Y$ - rejestry trwałe. $n$ oznacza indeks w tym bloku pamięci. Jeżeli otrzymany adres pokazuje na komórkę STR, której adres pokazuje na komórkę funtora $f/n$, gdzie $n > 0$ to rekurencyjnie wypisywane są też podtermy.

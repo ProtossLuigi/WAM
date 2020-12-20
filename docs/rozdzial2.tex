@@ -93,24 +93,49 @@ $B \leftarrow B \setminus \{b\}$\;
 }
 \fi
 
-W tym rozdziale opiszę jak działa pamięć maszyny. Wszystkie zmienne reprezentujące elementy pamięci maszyny są zmiennymi globalnymi.
+W tym rozdziale opisane są wszystkie elementy pamięci maszyny. Zmienne reprezentujące elementy pamięci maszyny są zmiennymi globalnymi. Cała pamięć jest czyszczona (nie licząc części kodu) przed rozpoczęciem wykonywania każdego zapytania.
 
 \section{Komórka pamięci}
 
-Komórka pamięci to podstawowa składowa wielu elementów pamięci. Każda komórka ma jeden z dwóch typów. Komórka zmiennej zawiera tag, który może być {REF} lub {STR}, a także adres dowolnej innej komórki znajdującej się w pamięci. Komórka funktora zawiera reprezentację funktora $f/n$, gdzie $f$ jest nazwą funktora, a $n$ liczbą argumentów przez niego przyjmowanych. Domyślnie każda komórka jest komórką zmiennej o tagu {REF} i adresie pokazującym na samą siebie.
+Komórka pamięci to podstawowa składowa wielu elementów pamięci. Każda komórka ma jeden z dwóch typów. Komórka zmiennej zawiera tag, który może być {REF} lub {STR}, a także adres dowolnej innej komórki znajdującej się w pamięci. Komórka funktora zawiera reprezentację funktora $f/n$, gdzie $f$ jest nazwą funktora, a $n$ liczbą argumentów przez niego przyjmowanych. Domyślnie każda komórka jest komórką zmiennej o tagu {REF} i adresie pokazującym na samą siebie, czyli tzw. komórką nieprzypisaną. Nieprzypisana komórka odpowiada nieprzypisanej zmiennej.\\
+W implementacji komórka jest reprezentowana przez własną klasę z polami \texttt{string tag} i \texttt{shared\_ptr<Address> addr}.
 
 \section{\texttt{HEAP} - Sterta}
 
+Sterta to główny blok pamięci w którym przechowywane są komórki pamięci reprezentujące struktury i zmienne (w przeciwieństwie do rejestrów, w których wszystkie komórki są komórkami REF z adresami komórek ze sterty). Adres końca sterty jest pamiętany przez rejestr H. Rejestr H jest aktualizowany na końcu każdej instrukcji, która dodaje nowe komórki do sterty.\\
+Sterta jest reprezentowana przez klasę \texttt{MemoryBloc}, która trzyma komórki w werktorze z przeładowanymi operatorami dostępu, które w przypadku próby dostępu do komórki o indeksie większym od długości wektora najpierw zapełnia brakujące pola nieprzypisanymi komórkami. Rejestr H jest reprezentowany przez liczbę naturalną równą długości sterty.
+
 \section{Rejestry tymczasowe}
+
+Rejestry zawierają komórki z adresami pokazującymi na stertę. Komórki w rejestrach służą jako wskaźniki do miejsc w stercie gdzie przechowywane są podtermy zawarte w obecnie ewaluowanym termie. Rejestry tymczasowe przestają być użyteczne po przejściu do następnego termu i są nadpisywane. Rejestry tymczasowe są przypisywane do podtermów przez kompilator.\\
+Rejestry tymczasowe są reprezentowane przez klasę \texttt{MemoryBloc}, tak samo jak sterta.
+
+\section{Rejestry argumentów}
+
+Rejestry argumentów tak samo jak rejestry tymczasowe zawierają komórki będące wskaźnikami na stertę. Przechowują one adresy argumentów, czyli bezpośrednich podtermów ewaluowanego termu i służą do przekazywania argumentów przy wywołaniu instrukcji \texttt{call}. Są one ustawiane w trakcie ewaluowania termu z zapytania i są one wczytywane do innych rejestrów w trakcie dopasowywania do głowy klauzuli.\\
+Rejestry argumentów są reprezentowane przez klasę \texttt{MemoryBloc}.
 
 \section{Rejestry trwałe}
 
+Rejestry trwałe działają podobnie do rejestrów tymczasowych i rejestrów argumentów i służą do pamiętania zmiennych pojawiających się w wielu termach w zapytaniu lub regule. Rejestry trwałe są zapisywane w środowiskach i są wymieniane wraz ze zmianą aktywnego środowiska. Te rejestry są przydzielane do zmiennych przez kompilator.\\
+Rejestry argumentów są reprezentowane przez klasę \texttt{MemoryBloc}.
+
+\section{\texttt{MODE} - Tryb maszyny}
+
+W momencie wykonywania zapytania maszyna w każdym momencie może być w jednym z dwóch trybów: $read$ i $write$. Tryb jest ustawiany przez instrukcję \texttt{get\_structure} i zmienia działanie instrukcji \texttt{unify\_variable} i \texttt{unify\_value}. Drugim rejestrem globalnym używanym tylko przez te instrukcje jest rejestr \texttt{S} przechowujący adres w stercie.\\
+Zarówno \texttt{MODE} i \texttt{S} reprezentowane są przez liczby naturalne, przy czym $mode$ może być w tylko dwóch stanach: 0 ($write$) i 1 ($read$). 
+
 \section{\texttt{CODE} - Magazyn kodu}
 
-\section{\texttt{P} i \texttt{CP}}
+W magazynie kodu przechowywana jest załadowana lista instrukcji wygenerowana przez kompilator lub pobrana z pliku. Instrukcje programu i zapytanie ładowane są osobno przed rozpoczęciem wykonywania zapytania. Najpierw ładowane są klauzule wbudowane, które funkcjonują jak część programu, która jest niewidoczna w ładowanym pliku. Następnie ładuje program. Wszystkie etykiety są usuwane z kodu i pamiętane są osobno razem z numerami instrukcji następujących po nich. Na końcu ładowany jest kod zapytania i ustawiany jest rejestr \texttt{P} oznaczajacy miejsce w kodzie instrukcji obecnie wykonywanej i rejestr \texttt{CP} oznaczający miejsce w kodzie do którego maszyna ma wrócić po wywołaniu \texttt{proceed} lub \texttt{deallocate}. Rejestr \texttt{P} ustawiany jest na pierwszą instrukcję z zapytania, a \texttt{CP} na koniec kodu.\\
+Magazyn kodu jest reprezentowany przez wektor wektorów stringów, gdzie każde pole zawiera osobno nazwę instrukcji i wszystkie argumenty jako stringi. Etykiety są pamiętane w \texttt{std::unordered\_map} gdzie kluczem jest string będący nazwą etykiety, a warotścią jest liczba naturalna oznaczająca indeks instrukcji której odpowiada etykieta. Rejestry \texttt{P} i \texttt{CP} są reprezentowane przez liczby naturalne.
 
-\section{\texttt{AND-STACK}}
+\section{\texttt{TRAIL} - Ślad}
 
-\section{\texttt{OR-STACK}}
+Ślad służy do zapamiętywania kiedy nieprzypisane zmienne zostają przypisane tak, żeby w przypadku nawrotu dało się cofnąć odpowiednie przypisania. Przechowuje on adresy zmiennych w kolejności, w której zostają przypisane. Nowy element zostaje dodany na koniec śladu za każdym razem gdy zostaje wywołana operacja $bind$. W przypadku nawrotu i konieczności odłączania zmiennych rejestr \texttt{HB} pamięta wielkość sterty przed ostatnim punktem wyboru, żeby nie próbować odłączać zmiennych usuniętych przez nawrót.\\
+Ślad jest reprezentowany przez wektor adresów przypisywanych komórek. Podczas nawrotu odpowiednia ilość elementów z końca śladu jest usuwana. Rejestr \texttt{HB} jest reprezentowany przez liczbę naturalną oznaczającą ilość komórek w stercie.
 
+\section{\texttt{AND-STACK} i \texttt{OR-STACK} - Stosy}
 
+\texttt{AND-STACK} jest stosem przechowującym środowiska. Środowisko przechowuje rejestry trwałe i punkt powrotu (\texttt{CP}) dla obecnie przetwarzanego zapytania lub reguły, a także indeks poprzedniego środowiska, które ponownie się uaktywni po dealokacji obecnego. Globalny rejestr \texttt{E} zawiera indeks obecnie aktywnego środowiska. \texttt{OR-STACK} jest stosem przechowującym punkty wyboru. Punkt wyboru zapamiętuje moment w którym maszyna dokonuje wyboru, w jaki sposób próbować udowodnić term z zapytania lub ciała reguły. W przypadku Niepowodzenia w ewaluacji maszyna wraca do ostatniego punktu wyboru i próbuje udowodnić term w inny sposób. Punkt wyboru przechowuje wartości wielu globalnych rejestrów w momenie jego utworzenia: \texttt{E}, \texttt{CP}, \texttt{B}, \texttt{H}. Oprócz tego punkt wyboru w momencie utworzenia zapamiętuje też długość śladu, rejestry argumentów (których ilość jest pamiętana w globalnym rejestrze \texttt{num\_of\_args} i numer instrukcji do której maszyna ma przejść w przypdaku konieczności powrotu do tego punktu. Każdy punkt wyboru chroni środowiska istniejące w momencie jego utworzenia przed usunięciem po dealokacji w razie konieczności ponownej aktywacji tego środowiska po nawrocie. Alternatywną metodą implementacji jest przechowywanie środowisk i punktów wyboru na jednym stosie \cite{WAM}. Wtedy każdy punkt wyboru chroni przed usunięciem wszystkie środowiska pod nim na stosie i globalny rejestr \texttt{B} pamięta indeks na stosie aktywnego punktu wyboru. Ze względu na łatwość w implementacji zdecydowałem się na użycie dwóch stosów, a rejestr \texttt{B} służy do ochrony środowisk pamiętając aktywne środowisko w momencie utworzenia ostatniego punktu wyboru.\\
+Oba stosy są reprezentowane przez wektory. Środowisko jest reprezentowane przez własną klasę z polami przechowującymi warotści rejestrów trwałych i rejestrów \texttt{E} i \texttt{CP}. W trakcie przełączania aktywnego środowiska wartości rejestrów trwałych są zapisywane w poprzednim środowisku, a na ich miejsce są wczytywane rejestry trwałe z nowego środowiska. Punkt wybory też jest reprezentowany przez własną klasę z polami \texttt{E}, \texttt{CP}, \texttt{B}, \texttt{H}, \texttt{TR} (długość śladu), \texttt{BP} (instrukcja do wykonania po nawrocie). Wszystkie te pola są liczbami naturalnymi.

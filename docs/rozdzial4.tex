@@ -5,12 +5,39 @@
 W tym rozdziale należy omówić zawartość pakietu instalacyjnego oraz założenia co do środowiska, w którym realizowany system będzie instalowany. Należy przedstawić procedurę instalacji i wdrożenia systemu. Czynności instalacyjne powinny być szczegółowo rozpisane na kroki. Procedura wdrożenia powinna obejmować konfigurację platformy sprzętowej, OS (np. konfiguracje niezbędnych sterowników) oraz konfigurację wdrażanego systemu, m.in.\ tworzenia niezbędnych kont użytkowników. Procedura instalacji powinna prowadzić od stanu, w którym nie są zainstalowane żadne składniki systemu, do stanu w którym system jest gotowy do pracy i oczekuje na akcje typowego użytkownika.
 \fi
 
-W tym rozdziale opiszę działanie i sposób obsługi kompilatora.
+Kompilator zawarty w programie służy do kompilowania programów i zapytań Prologa do instrukcji maszyny Warrena. Kompilator rozpoznaje czy na wejściu dostaje zapytanie czy program, po tym że zapytania zaczynają się od \texttt{?-}. Dla programu instrukcje generowane są dla każdej klauzuli osobno, a następnie łączone w ze sobą w całość. Nazwy struktur i zmiennych mogą zawierać wielkie i małe litery, cyfry i podkreślniki.\\
+Kompilator akceptuje operator unifikacji, który nie należy do czystego Prologa: \texttt{X = Y} jest interpretowane jako term \texttt{=(X,Y)}.\\
+Oprócz tego kompilator obsługje listy. Pusta lista to \texttt{[]}, singleton \texttt{[X]} jest interpretowany jako \texttt{.(X, [])}. Dłuższe listy są konwertowane rekurencyjnie, np. \texttt{[X, Y, Z]} do \texttt{.(X, .(Y, .(Z, [])))}. Dopuszczalny jest też zapis \texttt{[X | Y]}, gdzie \texttt{Y} to ogon listy i jest konwertowany do \texttt{.(X, Y)}. Można też użyć zapis mieszany, np. \texttt{[X, Y | Z]}.
 
 \section{Gramatyka}
 
-Tu umieszczę schemat gramatyki.
+Przez lekser dostarczane są 2 tokeny: \texttt{STRUCT} oznaczający nazwę struktury i \texttt{VAR} oznaczający nazwę zmiennej.\\
+Schemat gramatyki:\\
+\texttt{program}\\
+\texttt{| predicates}\\
+\texttt{| ?- terms .}\\
+\texttt{predicates}\\
+\texttt{                             | predicates predicate}\\
+\texttt{                             | predicate}\\
+\texttt{predicate}\\
+\texttt{| term :- terms .}\\
+\texttt{                             | term .}\\
+\texttt{terms}\\
+\texttt{                     | terms , term}\\
+\texttt{                             | term}\\
+\texttt{term}\\
+\texttt{                     | STRUCT ( terms )}\\
+\texttt{                             | STRUCT}\\
+\texttt{                             | VAR}\\
+\texttt{                             | []}\\
+\texttt{                             | [ terms ]}\\
+\texttt{                             | [ terms | term ]}\\
+
+Przez lekser dostarczane są 2 tokeny: \texttt{STRUCT} oznaczający nazwę struktury i \texttt{VAR} oznaczający nazwę zmiennej.
 
 \section{Sposób alokacji pamięci}
 
-Tutaj opiszę w jaki sposób kompilator decyduje o przydziale rejestrów.
+Alokowane są 3 typy rejestrów: tymczasowe (oznaczane przez \texttt{X}), argumentów (\texttt{A}) i trwałe (\texttt{Y}). Wszystkie typy rejestrów indeksowane są od 0.\\
+Rejestry argumentów są przydzielane do bezpośrednich podtermów obecnie rozpatrywanego termu w kolejności ich występowania.\\
+Rejestry tymczasowe są przydzielane do wszystkich podtermów w rozpatrywanym termie. Kolejność jest usutalana przeszukując nadrzędny term algorytmem BFS.\\
+Rejestry trwałe są przydzielane wszystkim zmiennym, które w rozpatrywanym zapytaniu lub regule pojawiają się w wielu termach nadrzędnych. Przydzielane są w takiej kolejności, w jakiej pojawiają się ich drugie wystąpienia.
