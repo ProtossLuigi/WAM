@@ -8,6 +8,7 @@
 %option yylineno
 %%
 [ \t\n]+
+\%.*$
 [A-Z][[:alnum:]_]*      {yylval.lineno = yylineno; yylval.str = std::string(yytext); return VAR;}
 [a-z0-9_][[:alnum:]_]*  {yylval.lineno = yylineno; yylval.str = std::string(yytext); return STRUCT;}
 \,                      {yylval.lineno = yylineno; return COMMA;}
