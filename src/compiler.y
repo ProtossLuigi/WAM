@@ -391,13 +391,20 @@ predicate:        term IMPLICATION terms DOT    {
                                                             }
                                                         }
                                                     }
-                                                    $$.str = "allocate " + std::to_string(perm_vars.size()) + "\n";
+                                                    bool has_perm_vars = perm_vars.size() != 0;
+                                                    if(has_perm_vars){
+                                                        $$.str = "allocate " + std::to_string(perm_vars.size()) + "\n";
+                                                    }
                                                     std::set<int> seen_perm_regs;
                                                     $$.str += compile_head(regs[0], perm_vars, seen_perm_regs, $$.ts[0]);
                                                     for(unsigned int i=1; i<$$.ts.size(); i++){
                                                         $$.str += compile_query(regs[i], perm_vars, seen_perm_regs, $$.ts[i]);
                                                     }
-                                                    $$.str += "deallocate\n";
+                                                    if(has_perm_vars){
+                                                        $$.str += "deallocate\n";
+                                                    } else{
+                                                        $$.str += "proceed\n";
+                                                    }
                                                 }
                 | term DOT                      {
                                                     $$.lineno = $1.lineno;

@@ -10,7 +10,10 @@
 #include "ChoicePoint.hpp"
 #include <stack>
 #include <unordered_map>
+#include <chrono>
 #include "../compiler_y.hpp"
+
+using namespace std::chrono;
 
 extern int compile(std::string in_string, std::string& out_string);
 
@@ -38,6 +41,11 @@ int E = -1;
 int B = -1;
 unsigned int num_of_args;
 unsigned int HB = 0;
+
+bool stats = false;
+unsigned int inferences = 0;
+high_resolution_clock::time_point last_time;
+duration<double> timer = duration<double>::zero();
 
 std::string term_to_string(Address addr);
 
@@ -378,6 +386,10 @@ bool get_value(Address reg, Address arg_reg){
 }
 
 bool call(std::string str){
+    if (stats)
+    {
+        inferences++;
+    }
     CP = P;
     std::smatch match;
     std::regex header("(\\w+|=)\\/(\\d+)");
@@ -623,13 +635,21 @@ void run(){
             std::cerr << "Warning: Unrecognized instruction " << command[0] << " in memory at line " << P <<". Skipping.\n";
         }
         P++;
-        if(P == code.size()){
+        if(P == code.size() && !fail){
+            if (stats)
+            {
+                timer += high_resolution_clock::now() - last_time;
+            }
             std::cout << "true\n" << "continue evaluation? (y/n): ";
             char c;
             std::cin >> c;
             while(c != 'y' && c != 'n')
             {
                 std::cin >> c;
+            }
+            if (stats)
+            {
+                last_time = high_resolution_clock::now();
             }
             if(c == 'y')
             {
@@ -679,131 +699,195 @@ std::string string_from_file(const std::string& filename){
     return ss.str();
 }
 
+void reset_stats(){
+    timer = duration<double>::zero();
+    inferences = 0;
+}
+
+int only_compile(std::string filename_in, std::string filename_out){
+    std::string si = string_from_file(filename_in), so;
+    if (compile(si, so) > 0)
+    {
+        std::cerr << "Error: Compilation error.\n";
+        return 1;
+    }
+    std::fstream fs_out;
+    if (filename_out == "")
+    {
+        fs_out.open("a.out", std::fstream::out);
+    } else
+    {
+        fs_out.open(filename_out, std::fstream::out);
+    }
+    fs_out << so;
+    fs_out.close();
+    return 0;
+}
+
+int only_run(std::string program_filename, std::string query_filename){
+    std::fstream pfs, qfs;
+    pfs.open(program_filename, std::fstream::in);
+    qfs.open(query_filename, std::fstream::out);
+    try
+    {
+        load_program(pfs);
+        load_query(qfs);
+        if (stats)
+        {
+            last_time = high_resolution_clock::now();
+        }
+        run();
+        if (stats)
+        {
+            timer += high_resolution_clock::now() - last_time;
+            std::cout << inferences << " inferences, " << timer.count() << " seconds\n";
+        }
+    }
+    catch(char const* e)
+    {
+        std::cerr << e << '\n';
+        pfs.close();
+        qfs.close();
+        return 1;
+    }
+    catch(const std::string& e)
+    {
+        std::cerr << e << '\n';
+        pfs.close();
+        qfs.close();
+        return 1;
+    }
+    pfs.close();
+    qfs.close();
+    return 0;
+}
+
+int compile_and_run(std::string program_filename){
+    if (program_filename == "")
+    {
+        std::stringstream pss;
+        load_program(pss);
+    } else
+    {
+        std::string pis = string_from_file(program_filename), pos;
+        if (compile(pis, pos) != 0)
+        {
+            std::cerr << "Error: Program compilation error.\n";
+            return 1;
+        }
+        std::stringstream pss(pos);
+        try
+        {
+            load_program(pss);
+        }
+        catch(char const* e)
+        {
+            std::cerr << e << '\n';
+            return 1;
+        }
+        catch(const std::string& e)
+        {
+            std::cerr << e << '\n';
+            return 1;
+        }
+    }
+    std::string query;
+    while (std::cin.good())
+    {
+        std::cout << "?- ";
+        if(!std::cin.good()){
+            return 0;
+        }
+        std::cin >> std::ws;
+        getline(std::cin, query);
+        std::string qos;
+        if (compile("?-"+query, qos) != 0)
+        {
+            std::cerr << "Error: Program compilation error.\n";
+            return 1;
+        }
+        std::stringstream qss(qos);
+        try
+        {
+            load_query(qss);
+            if (stats)
+            {
+                last_time = high_resolution_clock::now();
+            }
+            run();
+            if (stats)
+            {
+                timer += high_resolution_clock::now() - last_time;
+                std::cout << inferences << " inferences, " << timer.count() << " seconds\n";
+            }
+        }
+        catch(char const* e)
+        {
+            std::cerr << e << '\n';
+        }
+        catch(const std::string& e)
+        {
+            std::cerr << e << '\n';
+        }
+        reset_memory();
+        if (stats)
+        {
+            reset_stats();
+        }
+    }
+    return 0;
+}
+
 int main(int argc, char** argv){
-    if (argc > 1 && strcmp(argv[1],"-c") == 0)
+    if (argc > 1 && strcmp(argv[1], "-c") == 0)
     {
         if (argc > 2)
         {
-            std::string in_filename = argv[2];
-            std::string out_filename = "a.out";
             if (argc > 3)
             {
-                out_filename = argv[3];
-            }
-            std::string si = string_from_file(in_filename), so;
-            if (compile(si, so) > 0)
+                return only_compile(argv[2], argv[3]);
+            } else
             {
-                std::cerr << "Error: Compilation error.\n";
-                return 1;
+                return only_compile(argv[2], "a.out");
             }
-            std::fstream fs_out;
-            fs_out.open(out_filename, std::fstream::out);
-            fs_out << so;
-            fs_out.close();
-            return 0;
         } else
         {
-            std::cerr << "Error: No input file specified.\n";
+            std::cerr << "Error: Missing arguments.\n";
             return 1;
         }
-    } else if (argc > 1 && strcmp(argv[1],"-e") == 0)
+    } else if (argc > 1 && strcmp(argv[1], "-e") == 0)
     {
-        if (argc > 3)
+        if ((argc > 3 && strcmp(argv[2], "--stats") != 0) || argc > 4)
         {
-            std::fstream pfs, qfs;
-            pfs.open(argv[2], std::fstream::in);
-            qfs.open(argv[3], std::fstream::out);
-            try
+            if (strcmp(argv[2], "--stats") == 0)
             {
-                load_program(pfs);
-                load_query(qfs);
-                run();
-            }
-            catch(char const* e)
+                stats = true;
+                return only_run(argv[3], argv[4]);
+            } else
             {
-                std::cerr << e << '\n';
-                pfs.close();
-                qfs.close();
-                return 1;
+                return only_run(argv[2], argv[3]);
             }
-            catch(const std::string& e)
-            {
-                std::cerr << e << '\n';
-                pfs.close();
-                qfs.close();
-                return 1;
-            }
-            pfs.close();
-            qfs.close();
-            return 0;
         } else
         {
-            std::cerr << "Error: Not enough input files specified.\n";
-            return 1;
+            std::cerr << "Error: Missing arguments.\n";
         }
     } else
     {
+        std::string program_filename = "";
         if (argc > 1)
         {
-            std::string pis = string_from_file(argv[1]), pos;
-            if (compile(pis, pos) != 0)
+            if (strcmp(argv[1], "--stats") == 0)
             {
-                std::cerr << "Error: Program compilation error.\n";
-                return 1;
-            }
-            std::stringstream pss(pos);
-            try
+                stats = true;
+                if (argc > 2)
+                {
+                    program_filename = argv[2];
+                }
+            } else
             {
-                load_program(pss);
+                program_filename = argv[1];
             }
-            catch(char const* e)
-            {
-                std::cerr << e << '\n';
-                return 1;
-            }
-            catch(const std::string& e)
-            {
-                std::cerr << e << '\n';
-                return 1;
-            }
-        } else
-        {
-            std::stringstream pss;
-            load_program(pss);
         }
-        std::string query;
-        while (std::cin.good())
-        {
-            std::cout << "?- ";
-            if(!std::cin.good()){
-                return 0;
-            }
-            std::cin >> std::ws;
-            getline(std::cin, query);
-            std::string qos;
-            if (compile("?-"+query, qos) != 0)
-            {
-                std::cerr << "Error: Program compilation error.\n";
-                return 1;
-            }
-            std::stringstream qss(qos);
-            try
-            {
-                load_query(qss);
-                run();
-            }
-            catch(char const* e)
-            {
-                std::cerr << e << '\n';
-                return 1;
-            }
-            catch(const std::string& e)
-            {
-                std::cerr << e << '\n';
-                return 1;
-            }
-            reset_memory();
-        }
-        return 0;
+        return compile_and_run(program_filename);
     }
 }
