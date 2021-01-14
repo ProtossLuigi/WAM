@@ -18,6 +18,8 @@
 \:\-                    {yylval.lineno = yylineno; return IMPLICATION;}
 \?\-                    {yylval.lineno = yylineno; return QUERY;}
 =                       {yylval.lineno = yylineno; return EQUALS;}
+\<                      {yylval.lineno = yylineno; return LESS;}
+\>                      {yylval.lineno = yylineno; return GREATER;}
 \[                      {yylval.lineno = yylineno; return LBR;}
 \]                      {yylval.lineno = yylineno; return RBR;}
 \|                      {yylval.lineno = yylineno; return VERT;}

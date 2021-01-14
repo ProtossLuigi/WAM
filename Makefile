@@ -2,9 +2,14 @@ CXX = g++
 CXXFLAGS = -ggdb -Wall
 SRC_PATH = ./src
 
-.PHONY: all clean
+.PHONY: all clean debug release
 
-all: wam
+all: debug
+
+debug: wam
+
+release: CXXFLAGS = -Wall
+release: clean wam
 
 main.o: $(SRC_PATH)/main.cpp compiler_y.hpp
 	$(CXX) -c $(CXXFLAGS) $< -o $@

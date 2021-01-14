@@ -70,6 +70,7 @@
         "set": "cpp",
         "xhash": "cpp",
         "xtree": "cpp",
-        "chrono": "cpp"
+        "chrono": "cpp",
+        "ratio": "cpp"
     }
 }

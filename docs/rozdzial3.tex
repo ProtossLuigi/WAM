@@ -1,4 +1,4 @@
-\chapter{Instrukcje Maszyny}
+\chapter{Opis implementacji}
 \thispagestyle{chapterBeginStyle}
 
 \iffalse
@@ -98,7 +98,7 @@ sub process_req(){
 }	
 \end{lstlisting} 
 \end{small}
-\fi
+
 
 Główna pętla progarmu polega na wywołaniu instrukcji \texttt{CODE[P]} i zwiększeniu \texttt{P} o 1 do momentu dojścia do końca kodu lub w trakcie wykonywania instrkcji zwrócenia $fail$. W pierwszym wypadku pojawia wykonywanie zapytania kończy się powodzeniem i użytkownik zostaje zapytany czy chce kontynuować. Jeśli wybierze "tak" to program wraca do wykonywania zapytania, tak jakby instrukcja zwróciła $fail$. Jeśli wykowana instrukcja zwróci $fail$, to jeśli jest aktywny punkt wyboru to wyknonywana jest operacja nawrotu i zapytanie wykonywane jest dalej. Jeżeli nie ma aktywnego punktu wyboru, to wykonywanie zapytania kończy się z wynikiem $fałsz$.\\
 Poniżej opisane są wszystkie obsługiwane instrukcje.
@@ -182,3 +182,103 @@ Niektóre instrukcje pojawiają się w kodzie generowanym przez samą maszynę p
 \subsection{\texttt{write}}
 
 Wypisuje na standardowe wyjście tektową reprezentacje termu na który pokazuje adres $deref($\texttt{A0}$)$. Jeśli otrzymany adres pokazuje na nieprzypisaną komórkę, wyświetlany jest jako \texttt{\_}$mn$, gdzie $m$ oznacza block pamięci w której zanjduje się zmienna: $H$ - sterta, $X$ - rejestry tymczasowe, $A$ - rejestry argumentów, $Y$ - rejestry trwałe. $n$ oznacza indeks w tym bloku pamięci. Jeżeli otrzymany adres pokazuje na komórkę STR, której adres pokazuje na komórkę funtora $f/n$, gdzie $n > 0$ to rekurencyjnie wypisywane są też podtermy.
+\fi
+
+Do kompilacji zaproponowanej implementacji zostały użyte programy: g++ 7.5.0, flex 2.6.4, GNU Bison 3.0.4 i GNU Make 4.1. WAM został napisany w C++ w standardzie C++14 na system Linux (testowane na Ubuntu WSL).\\
+
+\section{Implementacja WAM}
+
+Implementacja została napisana tak, żeby zawierać pełną funkcjonalność abstrakcyjnej maszyny Warrena dla czystego Prologa i tą opisaną w poprzednim rozdziale. Mimo tego pojawiają się małe różnice w reprezentacji pamięci maszyny.\\
+
+Pamięć maszyny zamiast być w jednym bloku w którym zawarte są wszystkie strefy\cite{instructions}, jest podzielona na bloki z których każdy odpowiada jednej strefie. Zaletą tego jest to, że aplikacji nie skończy się miejsce (zakładając że system operacyjny przydzieli jej wystarczająco miejsce), ponieważ używane struktury danych są dynamiczne i nie zaczną się na wzajem nadpisywać, jak to może się stać kiedy jest tylko jeden blok. Zmiany są też w komórkach pamięci. Kiedy istnieje więcej niż jeden blok pamięci adres nie może być już liczbą naturalną i musi oprócz tego zawierać wskaźnik na blok na który pokazuje. Do tego celu zaimplementowana jest klasa \texttt{Address}.\\
+Na skutek tego klasa reprezentująca komórkę danych \texttt{DataCell} ma dwa pola: \texttt{std::string tag} i {Address addr}.\\
+ Używane adresy prawie zawsze pokazują na stertę, ale umożliwianie im pokazywania na inne bloki pozwala uniknąć skomplikowanych błędów. Niektóre rejestry wciąż mogą pokazywać na tylko jeden blok i nie zawierają taga, więc zamiast komórki danych mogą reprzezentowane przez liczbę naturalną (np. \texttt{H}, \texttt{S}, \texttt{P}). Jako że wiele elementów pamięci WAM używa tylko jednego pola z komórki (\texttt{tag} lub \texttt{addr}) dla znaczącej części z nich można zmienić zupełnie ich typ tak, żeby lepiej odpowiadał ich funkcji. Bloki pamięci reprezentowane są przez różne struktury danych:\\
+Strefa kodu to \texttt{std::vector<std::vector<std::string>>}, gdzie każdy element zewnętrzego wektora zawiera w kolejności nazwę instrukcji i jej argumenty, wszystkie zapisane jako ciągi znaków. W trakcie ładowania kodu wszystkie etykiety są z niego usuwane i są zamiast tego pamiętane mapie gdzie kluczem jest nazwa etykiety, a wartością numer linii, której odpowiada, przyspiesza to wywołania predykatów.\\
+Dla sterty została zaimplementowana klasa \texttt{MemoryBloc} która działa jak wektor komórek pamięci, z tą różnicą, że jego operatory dostępu są zmienione i w przypadku próby dostępu do elementu z poza granic wektora, automatycznie się on rozszerza, na nowych miejscach dodając nieprzypisane komórki (komórki z tagiem " REF " i swoim własnym adresem). Symuluje to zachowanie pamięci w oryginalnym projekcie Warrena, gdzie cała pamięć od początku wypełniona jest nieprzypisanymi komórkami.\\
+Główny stos (\texttt{STACK}) jest bardziej zmodyfikowany. W przypadku użycia pojedynczego stosu, przechowuje on zarówno środowiska jak i punkty wyboru\cite{WAM}. Zaletą tego rozwiązania jest to, że każdy punkt wyboru chroni środowiska pod nim na stosie przed nadpisaniem, ponieważ w przypadku nawrotu może isnieć konieczność powrotu do zdealokowanego środowiska. W zaproponawanej implementacji zamiast stosu \texttt{STACK} istnieją dwa stosy: \texttt{AND\_STACK} przechowujący środowiska i \texttt{OR\_STACK} przechowujący punkty wyboru. W ten sposób każdy z tych stosów jest zaimplementowany jako wektor jednego typu (środowiska i punkty wyboru są zaimplementowane jako swoje własne klasy z różnymi polami i bez metod). W tym przypadku zmienia się funkcja rejestru \texttt{B} (typu \texttt{int}), który dotąd pokazywał na ostatni punkt wyboru, ale w proponowanej implementacji ostatni punkt wyboru jest zawsze ostatnim elementem \texttt{OR\_STACK} i nie wymaga pamiętania jego lokalizacji. Rejestr \texttt{B} przejmuje zadanie chronienia zdealokowanych środowisk, pokazując wielkość stosu \texttt{AND\_STACK} w momencie utworzenia ostatniego punktu wyboru i zabezpieczając przed nadpisaniem środowiska starszego od tego punktu wyboru.\\
+Ślad jest typu \texttt{std::vector<Address>} żeby pamiętać adresy przypisywanych zmiennych.\\
+Stos \texttt{PDL} jest typu \texttt{std::stack<Address>} i jest zmienną lokalną wewnątrz funkcji \texttt{unify}, ponieważ jest wykorzystywany tylko tam i powinnien być zerowany po każdym wywołaniu unifikacji.\\
+Rejestry tymczasowe, argumentów i trwałe są zaimplementowane za pomocą tego samego typu co sterta, czyli \texttt{MemoryBloc}, ponieważ tych rejestrów może być potrzebna niewiadoma ilość i nie można ich reprezentować za pomocą statycznej struktury danych.\\
+
+W podstawowym przypadku użycia (kompilator + WAM) aplikacja najpierw ładuje do strefy kodu wbudowane predykaty, następnie kompiluje i ładuje program (jeżeli podany). W tym momencie obecna długość kodu zostaje zapamiętana. Następnie aplikacja wyświetla użytkownikowi polecenie wpisania zapytania. Kiedy użytkownik je wpisze, zapytanie jest kompilowane i dodawane do strefy kodu. Wykonywanie zaczyna się od początku instrukcji zapytania i kończy gdy któraś instrukcja (lub \texttt{unify}) zwróci błąd albo maszyna dojdzie do końca kodu. W pierwszym wypadku ustawiana jest flaga \texttt{fail} i zaczyna się nawrót, czyli próba przywrócenia maszyny do stanu z ostatniego punktu wyboru. Jeśli taki punkt wyboru istnieje to wykonywanie wznawia się w miejscu w kodzie wskazanym przez dany punkt. W przeciwnym wypadku wykonywanie kończy się porażką i aplikacja wyświetla wartość wyjściową $fałsz$. Jeżeli maszyna dojdzie do końca kodu, to wykonanie kończy się sukcesem i aplikacja pyta użytkownika czy kontynuować wykonywanie. Jeżeli użytkownik odpowie "tak" to maszyna zachowuje się tak, jakby właśnie trafiła na błąd i zaczyna nawrót. W przeciwnym wypadku kończy wykonywanie.\\
+Po zakończeniu wykonywania aplikacja usuwa ze strefy kodu kod zapytania zostawiając tylko kod wbudowanych predykatów i programu, a następnie prosi o wpisanie następnego zapytania. Aplikacja działa w pętli aż nie zostanie manualnie zatrzymana (ctrl+c).\\
+
+\begin{minipage}{\textwidth}
+Przykładowy fragment kodu odpowiedzialny za funkcję \texttt{unify} służącą do udowadniania tożsamości dwóch poddrzew unifikowanych termów:\\
+\begin{verbatim}
+bool unify(Address a1, Address a2){
+    std::stack<Address> pdl;
+    pdl.push(a1);
+    pdl.push(a2);
+    while(!pdl.empty()){
+        Address d1 = deref(pdl.top());
+        pdl.pop();
+        Address d2 = deref(pdl.top());
+        pdl.pop();
+        if(d1 != d2){
+            if(d1.getCell().tag == "REF" || d2.getCell().tag == "REF"){
+                bind(d1,d2);
+            } else{
+                functor f1 = get_functor(d1.getCell().getAddr().getCell().tag);
+                functor f2 = get_functor(d2.getCell().getAddr().getCell().tag);
+                if(f1.first == f2.first && f1.second == f2.second){
+                    for(unsigned int i = 1; i <= f1.second; i++){
+                        pdl.push(d1.getCell().getAddr()+i);
+                        pdl.push(d2.getCell().getAddr()+i);
+                    }
+                } else{
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+\end{verbatim}
+\end{minipage}
+
+\section{Implementacja kompilatora}
+
+Kompilator składa się z leksera napisanego przy pomocy Flexa i parsera napisanego przy pomocy GNU Bisona. Gramatyka kompilatora jest opisana w poprzednim rozdziale. Kompilator pobiera kod Prologa jako \texttt{std::string} i zwraca listę instrukcji jako \texttt{std::string}. Lekser przetwarza cały wejściowy ciąg znaków na tokeny, usuwając przy tym białe znaki i komentarze (wszystko od znaku \% do końca linii). Tokeny reprezentują statyczne znaki lub krótkie ciągi znaków używane w kodzie Prologa nie licząc tokenów \texttt{VAR} i \texttt{STRUCT}, które odpowiednio oznaczają nazwy zmiennych i struktur.\\
+Parser składając termy predykatów lub zapytania konstruuje termy w postaci drzewa i zapamiętuje je aż do momentu złożenia ich w predykat lub zapytanie, kiedy generuje instrukcje. Generowanie instrukcji jest możliwe dopiero w tym momencie, ponieważ poznane zostają wszystkie zmienne i jest możliwe wyodrębnienie zmiennych, które muszą być przechowywane w rejestrach trwałych. W przypadku programu w momencie złożenia predykatów są one grupowane i generowane są instrukcje zarządzające punktami wyboru, tam gdzie jest więcej niż jeden predykat o takiej samej nazwie. Rejestry są indeksowane od 0. Instrukcje generowane dla danego termu różnią się znacząco w zależności gdzie jest ten term. Jeśli term jest w zapytaniu lub w ciele reguły to generowane są dla niego instrukcje konstruujące reprezentacje termu w maszynie i umieszczające ją w argumentach (np. \texttt{put\_structure}, \texttt{set\_variable} i \texttt{set\_value}). Instrukcje dla struktur w takim termie są generowane od liści do korzenia. Każdy term jest konstruowany ze skonstruowanych już podtermów. Za to instrukcje generowane dla termów z faktów lub głowy reguły służą do zczytywania istniejących termów i sprawdzania ich zgodności z obecnie rozpatrywanym termem (np. \texttt{get\_structure}, \texttt{unify\_variable} i \texttt{unify\_value}). W tym wypadku instrukcje dla struktur są generowane w kolejności od korzenia do liści. Argumenty tymczasowe są przydzielane do termów w danym drzewie w kolejności zgodnej z przeszukaniem w szerz. Rejestry argumentów są przydzielane zgodnie z kolejnością argumentów, a rejestry trwałe z kojenością drugich wystąpień zmiennych w predykacie lub zapytaniu.\\
+
+\begin{minipage}{\textwidth}
+Przykładowy fragment kodu odpowiedzialny za składanie predykatów w program:\\
+\begin{verbatim}
+{
+std::unordered_map<std::string, std::vector<unsigned int>> clauses;
+for(unsigned int i=0; i<$1.ts.size(); i++){
+       std::string name = $1.ts[i]->name + "/" + std::to_string($1.ts[i]->no_subterms);
+       if(clauses.find(name) == clauses.end()){
+             clauses[name] = std::vector<unsigned int>();
+       }
+       clauses[name].push_back(i);
+}
+int labels = 0;
+std::string code;
+for(std::pair<std::string, std::vector<unsigned int>> clause : clauses){
+       code += clause.first + " :\n";
+       if(clause.second.size() == 1){
+              code += $1.codes[clause.second[0]];
+       } else{
+              for(unsigned int i=0; i<clause.second.size(); i++){
+                     if(i == 0){
+                            code += "try_me_else L" + std::to_string(labels) + "\n";
+                     } else{
+                            code += "L" + std::to_string(labels) + " :\n";
+                            labels++;
+                            if(i == clause.second.size()-1){
+                                   code += "trust_me\n";
+                            } else{
+                                   code += "retry_me_else L" + std::to_string(labels) + "\n";
+                            }
+                     }
+                     code += $1.codes[clause.second[i]];
+              }
+       }
+}
+ostring = code;
+YYACCEPT;
+}
+\end{verbatim}
+\end{minipage}

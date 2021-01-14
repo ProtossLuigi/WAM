@@ -1,4 +1,4 @@
-\chapter{Struktura pamięci}
+\chapter{Opis projektu}
 \thispagestyle{chapterBeginStyle}
 
 \iffalse
@@ -91,7 +91,7 @@ $B \leftarrow B \setminus \{b\}$\;
 \caption{Wyporność przez bąblowanie}\label{alg:mine}
 \end{pseudokod}
 }
-\fi
+
 
 W tym rozdziale opisane są wszystkie elementy pamięci maszyny. Zmienne reprezentujące elementy pamięci maszyny są zmiennymi globalnymi. Cała pamięć jest czyszczona (nie licząc części kodu) przed rozpoczęciem wykonywania każdego zapytania.
 
@@ -139,3 +139,62 @@ Magazyn kodu jest reprezentowany przez wektor wektorów stringów, gdzie każde 
 
 \texttt{AND-STACK} jest stosem przechowującym środowiska. Środowisko przechowuje rejestry trwałe i punkt powrotu (\texttt{CP}) dla obecnie przetwarzanego zapytania lub reguły, a także indeks poprzedniego środowiska, które ponownie się uaktywni po dealokacji obecnego. Globalny rejestr \texttt{E} zawiera indeks obecnie aktywnego środowiska. \texttt{OR-STACK} jest stosem przechowującym punkty wyboru. Punkt wyboru zapamiętuje moment w którym maszyna dokonuje wyboru, w jaki sposób próbować udowodnić term z zapytania lub ciała reguły. W przypadku Niepowodzenia w ewaluacji maszyna wraca do ostatniego punktu wyboru i próbuje udowodnić term w inny sposób. Punkt wyboru przechowuje wartości wielu globalnych rejestrów w momenie jego utworzenia: \texttt{E}, \texttt{CP}, \texttt{B}, \texttt{H}. Oprócz tego punkt wyboru w momencie utworzenia zapamiętuje też długość śladu, rejestry argumentów (których ilość jest pamiętana w globalnym rejestrze \texttt{num\_of\_args} i numer instrukcji do której maszyna ma przejść w przypdaku konieczności powrotu do tego punktu. Każdy punkt wyboru chroni środowiska istniejące w momencie jego utworzenia przed usunięciem po dealokacji w razie konieczności ponownej aktywacji tego środowiska po nawrocie. Alternatywną metodą implementacji jest przechowywanie środowisk i punktów wyboru na jednym stosie \cite{WAM}. Wtedy każdy punkt wyboru chroni przed usunięciem wszystkie środowiska pod nim na stosie i globalny rejestr \texttt{B} pamięta indeks na stosie aktywnego punktu wyboru. Ze względu na łatwość w implementacji zdecydowałem się na użycie dwóch stosów, a rejestr \texttt{B} służy do ochrony środowisk pamiętając aktywne środowisko w momencie utworzenia ostatniego punktu wyboru.\\
 Oba stosy są reprezentowane przez wektory. Środowisko jest reprezentowane przez własną klasę z polami przechowującymi warotści rejestrów trwałych i rejestrów \texttt{E} i \texttt{CP}. W trakcie przełączania aktywnego środowiska wartości rejestrów trwałych są zapisywane w poprzednim środowisku, a na ich miejsce są wczytywane rejestry trwałe z nowego środowiska. Punkt wybory też jest reprezentowany przez własną klasę z polami \texttt{E}, \texttt{CP}, \texttt{B}, \texttt{H}, \texttt{TR} (długość śladu), \texttt{BP} (instrukcja do wykonania po nawrocie). Wszystkie te pola są liczbami naturalnymi.
+\fi
+
+Sposób działania opisanej implementacji jest oparty na sposobie działania SWI-Prologa z dodatkową możliwością używania kompilatora i maszyny WAM oddzielnie. Założeniem było zaimplementowanie podstawowej funkcjonalności SWI-Prologa, dając także lepszy wgląd w działanie WAM poprzez danie użytkownikowi możliwości uzyskania tekstowej reprezentacji kodu Prologa skompilowanego do listy instrukcji WAM, a następnie uruchomienia WAM dla tych instrukcji (lub napisanych ręcznie przez użytkownika). Do tego celu zawarte w aplikacji implementacja WAM i kompilator są dwiema łatwo rozróżnialnymi częściami uruchamianymi z głównej pętli aplikacji i możliwymi do uruchomienia osobno. W celu dalszej rozbudowy funkcjonalności i umożliwieniu analizy efektywności w projekcie implementacji znalazły się też dodatkowe instrukcje nie znajdujące się w zestawie instrukcji WAM dla czystego języka Prolog, wbudowane predykaty i wbudowana opcja pomiaru czasu i liczby inferencji.
+
+\section{Dodatkowa funkcjonalność}
+
+Zaproponowana implementacja zawiera wbudowane predykaty: \texttt{=/2}, \texttt{write/1}, \texttt{nl/0}, \texttt{./2} oraz \texttt{</2}. Ich kod zawsze jest dołączany na początek strefy kodu WAM przed kodem programu.\\
+Predykat \texttt{=/2} unifikuje oba argumenty, tak jak w SWI-Prologu i jest zaimplementowany ze względu na wygodę użytkowania.\\
+Predykat \texttt{write/1} wypisuje tekstową reprezentację termu z argumentu na standardowe wyjście. Działa rekurencyjnie dla termów złożonych i wypisuje też listy w opdowiedni sposób. Dla nieprzypisanych zmiennych wypisuje ich adres w pamięci.\\
+Predykat \texttt{nl/0} wypisuje na standardowe wyjście nową linię.\\
+Term \texttt{.(A,B)} reprzezentuje listę \texttt{B} z dołączonym pierwszym elementem \texttt{A}. Pustą listę oznacza term \texttt{[]}. Predykat \texttt{./2} sprawdza czy term jest poprawną reprezentacją listy, tzn. czy drugi argument jest poprawną reprezentacją listy (w tym może być pustą listą).\\
+Predykat \texttt{</2} sprawdza czy oba argumenty są liczbami całkowitymi i czy pierwszy argument jest mniejjszy od drugiego.\\
+
+Do implementacji części z tych predykatów wymagana była implementacja specjalnych instrukcji, które nie są nigdy generowane przez kompilator ale pojawiają się w kodzie wbudowanych predykatów, żeby umożliowić ich funkcjonalność nie dostępną dla czystego Prologa. Instrukcje \texttt{write}, \texttt{nl}, \texttt{less\_than} uruchamiają funkcjonalność odpowiadających im predykatom dla odpowiednich rejestrów argumentów.\\
+
+Przy uruchomieniu aplikacji dodatkowo jest dostępny tryb drukowania statystyk. W trakcie wykonywania każdego zapytania mierzony jest czas i liczba inferencji.\\
+
+\section{Kompilacja}
+
+Ważnym elementem implementacji jest kompilator. Aplikacja zawiera jeden kompilator kompilujący kod języka Prolog do tekstowej listy instrukcji WAM. Kompiluje on zarówno zapytania jak i programy. Metodą rozróżniania jest to, że zapytania w zaprzoponowanej implementacji zawsze muszą zaczynać się od \texttt{?-}.\\
+Kompilator obsługuje też termy o składni nie zgodnej z czystym Prologiem:\\
+\texttt{X = Y} jest kompilowane jak \texttt{=(X,Y)},\\
+podobnie \texttt{X < Y} i \texttt{X > Y},\\
+\texttt{[X]} oznacza listę i jest kompilowane jak \texttt{.(X,[])}, dozwolone są też listy o wielu elementach (\texttt{[X, Y, Z]}),\\
+\texttt{[X | Y]} oznacza listę, której ogonem jest \texttt{Y}, także można użyć wielu elementów (\texttt{[X, Y | Z]}).
+
+\section{Gramatyka}
+
+Dwa mające w gramatyce tokeny to \texttt{VAR} i \texttt{STRUCT}. Oznaczają one odpowiednio nazwy zmiennych i struktur. Składają się z dowolnej kombinacji liter małych, wielkich, cyfr i podkreślników. Różnią się tym że nazwy zmiennych zaczynają się wielką literą, w przeciwieństwie do nazw struktur.\\
+
+\newcommand{\INDSTATE}[1][1]{\STATE\hspace{#1\algorithmicindent}}
+
+\begin{algorithm}[H]
+\begin{algorithmic}
+\STATE \texttt{program}\\
+\INDSTATE[5] \texttt{predicates}\\
+\INDSTATE[5] \texttt{?- terms .}\\
+\texttt{predicates}\\	 
+\INDSTATE[5] \texttt{predicates predicate}\\
+\INDSTATE[5] \texttt{predicate}\\
+\texttt{predicate}\\		  
+\INDSTATE[5] \texttt{term :- terms .}\\
+\INDSTATE[5] \texttt{term .}\\
+\texttt{terms} \\		 
+\INDSTATE[5] \texttt{terms , term}\\
+\INDSTATE[5] \texttt{term}\\
+\texttt{term}\\				  
+\INDSTATE[5] \texttt{STRUCT ( terms )}\\
+\INDSTATE[5] \texttt{STRUCT}\\
+\INDSTATE[5] \texttt{VAR}\\
+\INDSTATE[5] \texttt{term = term}\\
+\INDSTATE[5] \texttt{term < term}\\
+\INDSTATE[5] \texttt{term > term}\\
+\INDSTATE[5] \texttt{[]}\\
+\INDSTATE[5] \texttt{[ terms ]}\\
+\INDSTATE[5] \texttt{[ terms $\vert$ term ]}\\
+\caption{Gramatyka kompilatora}
+\end{algorithmic}
+\end{algorithm}

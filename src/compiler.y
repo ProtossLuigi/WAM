@@ -268,6 +268,8 @@
 %token IMPLICATION
 %token QUERY
 %token EQUALS
+%token LESS
+%token GREATER
 %token VERT
 %token ERROR
 %%
@@ -391,7 +393,7 @@ predicate:        term IMPLICATION terms DOT    {
                                                             }
                                                         }
                                                     }
-                                                    bool has_perm_vars = perm_vars.size() != 0;
+                                                    bool has_perm_vars = true;
                                                     if(has_perm_vars){
                                                         $$.str = "allocate " + std::to_string(perm_vars.size()) + "\n";
                                                     }
@@ -436,6 +438,22 @@ term:         STRUCT LPAR terms RPAR    {
                                             $$.ts[0]->no_subterms = 2;
                                             $$.ts[0]->subterms.push_back($1.ts[0]);
                                             $$.ts[0]->subterms.push_back($3.ts[0]);
+                                        }
+            | term LESS term            {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts = std::vector<std::shared_ptr<Term>>();
+                                            $$.ts.push_back(std::make_shared<Term>("<"));
+                                            $$.ts[0]->no_subterms = 2;
+                                            $$.ts[0]->subterms.push_back($1.ts[0]);
+                                            $$.ts[0]->subterms.push_back($3.ts[0]);
+                                        }
+            | term GREATER term         {
+                                            $$.lineno = $1.lineno;
+                                            $$.ts = std::vector<std::shared_ptr<Term>>();
+                                            $$.ts.push_back(std::make_shared<Term>("<"));
+                                            $$.ts[0]->no_subterms = 2;
+                                            $$.ts[0]->subterms.push_back($3.ts[0]);
+                                            $$.ts[0]->subterms.push_back($1.ts[0]);
                                         }
             | LBR RBR                   {
                                             $$.lineno = $1.lineno;

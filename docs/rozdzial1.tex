@@ -13,7 +13,7 @@ W niniejszym rozdziale omówiono koncepcję architektury programowej systemu \ld
 szczególny sposób \ldots. Omówiono założenia funkcjonalne i niefunkcjonalne podsystemów \ldots. Przedstawiono
 mechanizmy \ldots. Sklasyfikowano systemy ze względu na \ldots. Omówiono istniejące rozwiązania informatyczne o podobnej funkcjonalności \ldots (zobacz \cite{JCINodesChord}).
 }
-\fi
+
 
 WAM jest główną częścią programu i odpowida za przetwarzanie zapytań i programów dostarczanych jako lista instrukcji maszyny Warrena. Każde zapytanie składa się z termów następujących po sobie. Jeżeli maszynie uda się je wszystkie udowodnić, to zwraca wynik "prawda", w przeciwnym wypdaku zwraca "fałsz".\\
 Do kluczowych w implementacji operacji należą:\\
@@ -29,3 +29,97 @@ Term z zapytania może być udowodniony przez zunifikowanie go z termem faktu, a
 \section{Nawroty}
 
 Jedną z ważniejszych cech Prologa jest jego niedeterminizm. Często jeden term można próbować udowodnić na wiele sposobów i maszyna musi być w stanie wykonać nawrót i spróbować odwołać się do innej klauzuli, jeśli obecna zwraca $fail$. Wymaga to tworzenia specjalnych punktów do których maszyna może wrócić, przywracając poprzedni stan swojej pamięci.
+\fi
+
+Abstrakcyjna maszyna Warrena (WAM) to abstrakcyjna maszyna zaprojektowana w 1983 przez Dawida H. D. Warrena i jest standardem dla implementacji kompilatorów Prologa. WAM zawiera swoją architekurę pamięci i zestaw instrukcji.
+
+\section{Prolog}
+
+Żeby zrozumieć WAM trzeba najpierw zrozumieć język Prolog. Kompilator Prologa przetwarza programy i zapytania. Program składa się z predykatów stanowi bazę wiedzy za pomocą której WAM próbuje wykonać zapytanie. Dla porównania z językami imperatywnymi można rozumieć zapytanie jako funkcję \texttt{main}, a predykaty jako inne funkcje, do których może odwoływać się zapytanie i one same. Zapytania i predykaty składają się z ciągu termów.\\
+
+Termem może być zmienna, formuła atomowa lub term złożony. Wartości zmiennych w Prologu są przypisywane w czasie wykonywania zapytania i podobnie jak w językach funkcyjnych, po przypisaniu nie mogą być zmienione (wyjątki pojawiają się w czasie nawrotów, kiedy wartość zmienniej może być od niej odpięta). Wartością zmiennej może być jedynie inny term (w przypadku przypisania do innej zmiennej, staje się jej referencją). Formuły atomowe to proste symbole zwane czasem też stałymi, które charakteryzują się jedynie swoją nazwą (np. \texttt{a}, \texttt{1}, \texttt{moj\_atom}). Termy złożone różnią się od atomów tym, że zawierają w sobie ciąg innnych termów zwanych podtermami. Podtermy też mogą być termami złożonymi, co powoduje że term można przedstawić jako drzewo, gdzie najbardziej zewnętrzny term jest korzeniem, dziećmi każdego termu są jego podtermy, a liśćmi są zmienne i atomy.\\
+
+Wykonywanie zapytania polega na udowodnieniu po kolei każdego z jego termów. WAM zwraca wynik $true$ lub $false$ w zależności od tego czy zapytanie udaje się udowodnić czy nie. Każdy term można udowodnić jedynie za pomocą predykatu. Są dwa typy przedykatów: fakty i reguły. W predykacie pierwszy term nazywa się " głową ", a pozostałe " ciałem ". Każdy predykat musi mieć głowę, a od tego czy ma ciało zależy czy jest faktem czy regułą (reguły mają ciało, a fakty nie). Żeby udowodnić term trzeba najpierw znaleźć predykat, dla którego nazwa i liczba podtermów głowy zgadzają się z rozpatrywanym termem. Następnie udowadniana jest tożsamość obu termów (unifikacja). Jeżeli unifikacja się powiedzie, to jeśli predykat jest faktem to term jest udowodniony i WAM przechodzi do udowadniania następnego termu, a jeśli jest regułą, to musi jeszcze udowodnić wszystkie termy z ciała w taki sam sposób jak termy zapytania. Dlatego zapytanie można traktować jak regułę bez głowy. W przypadku niepowodzenia w unifikacji z głową WAM wycofuje się i jeśli to możliwe próbuje udowodnić term korzystając z innego predykatu.
+
+\section{Architektura pamięci}
+
+Pamięć WAM jest pojedynczym blokiem składającym się z komórek. Każda komórka pamięci zawiera tag i wartość, która jest adresem komórki w pamięci, który może być reprezentowany przez liczbę naturalną. W pamięci wydzielone są strefy o zmiennej wielkości, a także przechowywane są globalne rejestry.
+
+\subsection{Strefy pamięci}
+
+Strefa kodu (\texttt{code area}) przechowuje listę instrukcji i ich argumenty.\\
+Sterta (\texttt{HEAP}) przechowuje wszystkie struktury i zmienne utworzone w czasie wykonywania zapytania.\\
+Stos (\texttt{STACK}) przechowuje środowiska i punkty wyboru. Środowiska przechowują rejestry trwałe dla obecnie rozpatrywanego predykatu, a także wartości rejestrów do przywrócenia przed swoją dealokacją. Punkty wyboru przechowują informacje potrzebne do odtworzenia stanu maszyny po nawrocie i są tworzone kiedy maszyna może próbować udowadniać term na wiele sposobów.\\
+Ślad (\texttt{TRAIL}) pamięta adresy zmiennych, do których zostały przypisane warotści w kolejności ich przypisania. Używany do odpinania przypisanych zmiennych w przypadku nawrotu.\\
+\texttt{PDL} jest innym stosem używanym tylko w czasie unifikacji.
+
+\subsection{Rejestry}
+\texttt{P} wskaźnik na obecnie wykonywaną instrukcję\\
+\texttt{CP} wskaźnik na instrukcję do której WAM będzie musiał wrócić po wyjściu z obecnego predykatu\\
+\texttt{H} wskaźnik na koniec sterty\\
+\texttt{S} używany do pamiętania adresów podtermów rozpatrywanej struktury\\
+\texttt{E} wskaźnik na obecnie aktywne środowisko\\
+\texttt{B} wskaźnik na ostatni punkt wyboru\\
+\texttt{TR} wskaźnik na koniec śladu\\
+\texttt{HB} wskaźnik na koniec sterty w momencie utworzenia ostatniego punktu wyboru\\
+\texttt{X1, X2,...} rejestry tymczasowe\\
+\texttt{A1, A2,...} rejestry argumentów\\
+
+Rejestry tymczasowe, argumentów i trwałe służą do pamiętania adresów termów na stercie. Rejestry tymczasowe pamiętają termy zawarte w pojedynczym rozpatrywanym termie. Rejestry argumentów służą do przekazywania argumentów w momencie wywołania predykatu. Argumentami są podtermy termu, który WAM będzie unifikować z głową predykatu. Rejestry trwałe przechowują adresy zmiennych pojawiających się w więcej niż jednym termie w danym zapytaniu lub regule.
+
+\section{Zestaw instrukcji}
+
+Żeby WAM mogło wykonywać kod Prologa, ten kod musi być najpierw skompilowany do listy instrukcji WAM. Instrukcje te są wykonywane po kolei aż WAM nie dojdzie do końca kodu i zakończy wykonywanie sukcesem lub dojdzie do niepowodzenia w wykonywaniu i nie ma punktu wyboru do którego może wrócić wykonywanie kończy się porażką. Lista instrukcji akceptowanych przez WAM\cite{WAM}:\\
+
+\texttt{put\_structure f/n,Xi}\\
+Dodaje do sterty komórki reprezentujące nową strukturę \texttt{f/n} i kopiuje do rejestru \texttt{Xi} komórkę pokazującą na tę strukturę.\\
+
+\texttt{set\_variable Xi}\\
+Dodaje do sterty komórkę reprezentującą nową zmienną i umieszcza w rejestrze \texttt{Xi} wskaźnik na nią.\\
+
+\texttt{set\_value Xi}\\
+Kopiuje komórkę z rejestru \texttt{Xi} na koniec sterty.\\
+
+\texttt{get\_structure f/n,Xi}\\
+Próbuje pobrać strukturę \texttt{f/n} z rejestru \texttt{Xi}. Jeżeli trafi na nieprzypisaną zmienną to tworzy tę strukturę na stercie i ustawia maszynę w tryb zapisywania na stercie podtermów tej struktury. Jeżeli trafi na komórkę pokazującą na odpowiednią strukturę to ustawia maszynę w tryb unifikowania podtermów (do pamiętania ich adresów używa rejestru \texttt{S}). Jeżeli trafi na inną strukturę to zwraca $false$.\\
+
+\texttt{unify\_variable Xi}\\
+Jeżeli maszyna jest w trybie zapisywania podtermów to dodaje na koniec sterty nową nieprzypisaną komórkę i kopiuje ją do rejestru \texttt{Xi}.\\
+Jeżeli maszyna jest w trybie unifikowania podtermów to kopiuje komórkę z pod adresu \texttt{S} do rejestru \texttt{Xi} (przestawiając potem \texttt{S} na następną komórkę).\\
+
+\texttt{unify\_value Xi}\\
+Jeżeli maszyna jest w trybie zpisywania podtermów to kopiuje komórkę z rejestru \texttt{Xi} na koniec sterty.\\
+Jeżeli maszyna jest w trybie unifikowania podtermów to unifikuje komórkę z adresu \texttt{S} i \texttt{Xi}.\\
+
+\texttt{put\_variable Xi,Aj}\\
+Dodaje na koniec sterty nieprzypisaną komórkę, a następnie kopiuje ją do rejestrów \texttt{Xi} i \texttt{Aj}.\\
+
+\texttt{put\_value Xi,Aj}\\
+Kopiuje komórkę z rejestru tymczasowego \texttt{Xi} do rejestru argumentu \texttt{Aj}.\\
+
+\texttt{get\_variable Xi,Aj}\\
+Kopiuje komórkę z rejestru argumentu \texttt{Aj} do rejestru tymczasowego \texttt{Xi}.\\
+
+\texttt{get\_value Xi,Aj}\\
+Unifikuje komórki w rejestrach \texttt{Xi} i \texttt{Aj}.\\
+
+\texttt{call label}\\
+Powoduje że WAM przechodzi do miejsca w kodzie oznaczonego etykietą \texttt{label} (ustawia odpowiednio rejestr \texttt{P} i rejestr powrotu \texttt{CP} oznaczający miejsce w kodzie z którego zostało wykonane ostatnie wywołanie). Jeśli nigdzie w kodzie nie ma etykiety \texttt{label} to zwraca $false$.\\
+
+\texttt{proceed}\\
+Wraca do ostatniego punktu wywołania (kopiuje \texttt{CP} do \texttt{P}).\\
+
+\texttt{allocate N}\\
+Tworzy nowe środowisko które przechowuje \texttt{N} rejestrów trwałych. Staje się ono aktywnym środowiskiem.\\
+
+\texttt{deallocate}\\
+Dealokuje obecnie aktywne środowisko i wraca do poprzedniego.\\
+
+\texttt{try\_me\_else label}\\
+Tworzy nowy punkt wyboru, którego punktem kontynuacji (miejscem w kodzie do którego przechodzi maszyna w przypadku powrotu do tego punktu wyboru) jest instrukcja z etykietą \texttt{label}.\\
+
+\texttt{retry\_me\_else label}\\
+Przywraca stan maszyny do stanu bezpośrednio po utworzeniu ostatniego punktu wyboru. Także zamienia punkt kontynuacji pamiętany przez aktywny punkt wyboru na miejce z etykietą \texttt{label}.\\
+
+\texttt{trust\_me}\\
+Przywraca stan maszyny do stanu z przed utworzenia ostatniego punktu wyboru, usuwając go.

@@ -477,6 +477,23 @@ void nl(){
     std::cout << std::endl;
 }
 
+bool less_than(){
+    try
+    {
+        int a = std::stoi(get_functor(deref(Address(arg_registers, 0)).getCell().getAddr().getCell().tag).first);
+        int b = std::stoi(get_functor(deref(Address(arg_registers, 1)).getCell().getAddr().getCell().tag).first);
+        return !(a < b);
+    }
+    catch(std::exception e)
+    {
+        return true;
+    }
+    catch(std::string e)
+    {
+        return true;
+    }
+}
+
 // Machine instructions end
 
 void load_builtin_predicates(){
@@ -507,6 +524,10 @@ void load_builtin_predicates(){
     code.push_back(std::vector<std::string> {"set_variable", "X1"});
     code.push_back(std::vector<std::string> {"call", "=/2"});
     code.push_back(std::vector<std::string> {"deallocate"});
+
+    labels["</2"] = code.size();
+    code.push_back(std::vector<std::string> {"less_than"});
+    code.push_back(std::vector<std::string> {"proceed"});
 }
 
 void load_program(std::iostream& f){
@@ -514,7 +535,7 @@ void load_program(std::iostream& f){
     std::string line;
     std::smatch match;
     std::regex r_label("[ \\t]*([\\w\\/\\.]+)[ \\t]*\\:$");
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/\\[\\]\\.]+))*)?$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\<\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\<\\/\\[\\]\\.]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {
@@ -548,7 +569,7 @@ void load_query(std::iostream& f){
     P = code.size();
     std::string line;
     std::smatch match;
-    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\/\\[\\]\\.]+))*)?$");
+    std::regex r_instr("[ \\t]*([a-z]\\w*)([ \\t]+([\\w=\\<\\/\\[\\]\\.]+)([ \\t]*,[ \\t]*([[:alnum:]=\\<\\/\\[\\]\\.]+))*)?$");
     int line_no = 1;
     while (getline(f, line))
     {
@@ -630,6 +651,9 @@ void run(){
         } else if (command[0] == "nl")
         {
             nl();
+        } else if (command[0] == "less_than")
+        {
+            fail = less_than();
         } else
         {
             std::cerr << "Warning: Unrecognized instruction " << command[0] << " in memory at line " << P <<". Skipping.\n";
